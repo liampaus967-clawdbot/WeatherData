@@ -1,0 +1,16 @@
+# Weather Data Pipeline - Cron Configuration
+#
+# Runs the pipeline at 15 minutes past each hour (UTC)
+# HRRR data is typically available 2-3 hours after model run
+#
+# Install with: crontab weather-pipeline.cron
+# Or append with: crontab -l | cat - weather-pipeline.cron | crontab -
+
+# Environment setup
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+HOME=/home/ubuntu
+
+# Weather Pipeline - runs at :15 past every hour
+# Format: minute hour day month weekday command
+15 * * * * /home/ubuntu/weather-pipeline/scripts/cron/run_pipeline.sh >> /var/log/weather-pipeline/cron.log 2>&1

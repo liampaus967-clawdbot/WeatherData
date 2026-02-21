@@ -1,0 +1,52 @@
+# Logrotate configuration for Weather Pipeline
+#
+# Install with: sudo cp weather-pipeline /etc/logrotate.d/
+#
+# Part of TICKET-011: Configure Cron Job for Hourly Execution
+
+/var/log/weather-pipeline/*.log {
+    # Rotate daily
+    daily
+
+    # Keep 14 days of logs
+    rotate 14
+
+    # Compress old logs
+    compress
+    delaycompress
+
+    # Don't error if log file is missing
+    missingok
+
+    # Don't rotate empty files
+    notifempty
+
+    # Create new log file with proper permissions
+    create 0644 ubuntu ubuntu
+
+    # Add date extension to rotated files
+    dateext
+    dateformat -%Y%m%d
+
+    # Rotate even if file size is 0
+    ifempty
+
+    # Copy and truncate (keeps file handles valid)
+    copytruncate
+}
+
+/var/log/weather-pipeline/cron.log {
+    # Rotate weekly for cron wrapper logs
+    weekly
+
+    # Keep 4 weeks
+    rotate 4
+
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0644 ubuntu ubuntu
+    dateext
+    copytruncate
+}

@@ -1,0 +1,128 @@
+{
+  "agent": {
+    "metrics_collection_interval": 60,
+    "run_as_user": "root",
+    "logfile": "/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log"
+  },
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/weather-pipeline/pipeline_*.log",
+            "log_group_name": "/weather-pipeline/pipeline",
+            "log_stream_name": "{instance_id}/pipeline",
+            "timezone": "UTC",
+            "timestamp_format": "%Y-%m-%d %H:%M:%S",
+            "multi_line_start_pattern": "^\\[\\d{4}-\\d{2}-\\d{2}",
+            "retention_in_days": 30
+          },
+          {
+            "file_path": "/var/log/weather-pipeline/download_*.log",
+            "log_group_name": "/weather-pipeline/download",
+            "log_stream_name": "{instance_id}/download",
+            "timezone": "UTC",
+            "timestamp_format": "%Y-%m-%d %H:%M:%S",
+            "multi_line_start_pattern": "^\\d{4}-\\d{2}-\\d{2}",
+            "retention_in_days": 30
+          },
+          {
+            "file_path": "/var/log/weather-pipeline/processing_*.log",
+            "log_group_name": "/weather-pipeline/processing",
+            "log_stream_name": "{instance_id}/processing",
+            "timezone": "UTC",
+            "timestamp_format": "%Y-%m-%d %H:%M:%S",
+            "multi_line_start_pattern": "^\\d{4}-\\d{2}-\\d{2}",
+            "retention_in_days": 30
+          },
+          {
+            "file_path": "/var/log/weather-pipeline/tiles_*.log",
+            "log_group_name": "/weather-pipeline/tiles",
+            "log_stream_name": "{instance_id}/tiles",
+            "timezone": "UTC",
+            "timestamp_format": "%Y-%m-%d %H:%M:%S",
+            "multi_line_start_pattern": "^\\d{4}-\\d{2}-\\d{2}",
+            "retention_in_days": 30
+          },
+          {
+            "file_path": "/var/log/weather-pipeline/s3_upload_*.log",
+            "log_group_name": "/weather-pipeline/s3-upload",
+            "log_stream_name": "{instance_id}/s3-upload",
+            "timezone": "UTC",
+            "retention_in_days": 30
+          }
+        ]
+      }
+    },
+    "force_flush_interval": 15
+  },
+  "metrics": {
+    "namespace": "WeatherPipeline/EC2",
+    "metrics_collected": {
+      "cpu": {
+        "measurement": [
+          "cpu_usage_idle",
+          "cpu_usage_user",
+          "cpu_usage_system"
+        ],
+        "metrics_collection_interval": 60,
+        "totalcpu": true,
+        "resources": ["*"]
+      },
+      "disk": {
+        "measurement": [
+          "used_percent",
+          "used",
+          "total"
+        ],
+        "metrics_collection_interval": 60,
+        "resources": ["/", "/home"]
+      },
+      "diskio": {
+        "measurement": [
+          "reads",
+          "writes",
+          "read_bytes",
+          "write_bytes"
+        ],
+        "metrics_collection_interval": 60,
+        "resources": ["*"]
+      },
+      "mem": {
+        "measurement": [
+          "mem_used_percent",
+          "mem_used",
+          "mem_total",
+          "mem_available"
+        ],
+        "metrics_collection_interval": 60
+      },
+      "net": {
+        "measurement": [
+          "bytes_sent",
+          "bytes_recv",
+          "packets_sent",
+          "packets_recv"
+        ],
+        "metrics_collection_interval": 60,
+        "resources": ["*"]
+      },
+      "processes": {
+        "measurement": [
+          "running",
+          "sleeping",
+          "total"
+        ],
+        "metrics_collection_interval": 60
+      }
+    },
+    "append_dimensions": {
+      "InstanceId": "${aws:InstanceId}",
+      "AutoScalingGroupName": "${aws:AutoScalingGroupName}",
+      "InstanceType": "${aws:InstanceType}"
+    },
+    "aggregation_dimensions": [
+      ["InstanceId"]
+    ]
+  }
+}

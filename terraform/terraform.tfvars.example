@@ -1,0 +1,36 @@
+# Terraform Variables Configuration
+# Copy this file to terraform.tfvars and fill in your values
+#
+# IMPORTANT: Never commit terraform.tfvars to version control!
+# It contains sensitive information like AWS credentials.
+
+# AWS Configuration
+aws_region  = "us-east-1"              # Change to your preferred region
+aws_profile = "default"                 # AWS CLI profile name (recommended)
+
+# S3 Configuration
+bucket_name = "your-unique-bucket-name" # Must be globally unique - CHANGE THIS
+environment = "production"
+
+# S3 Lifecycle Policies
+grib2_retention_days   = 7  # Days to keep raw GRIB2 files
+cog_retention_days     = 30 # Days to keep processed COG files
+cog_ia_transition_days = 2  # Days before moving to Infrequent Access
+tiles_retention_days   = 3  # Days to keep pre-generated tiles
+
+# CloudFront Configuration (optional)
+enable_cloudfront      = false
+cloudfront_price_class = "PriceClass_100" # US, Canada, Europe
+
+# EC2 Configuration
+enable_ec2         = false     # Set to true when ready for TICKET-002
+ec2_instance_type  = "t3.small"
+ec2_key_name       = "" # SSH key pair name (optional)
+
+# Tags
+project_tags = {
+  Project    = "Weather Data Pipeline"
+  ManagedBy  = "Terraform"
+  Repository = "WeatherData"
+  Owner      = "Your Name"
+}

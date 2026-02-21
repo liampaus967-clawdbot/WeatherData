@@ -1,0 +1,11 @@
+.env
+
+# Old terraform directory with hardcoded credentials - DO NOT COMMIT
+terraform_s3/
+
+# Terraform state and sensitive files
+*.tfstate
+*.tfstate.*
+*.tfvars
+!terraform.tfvars.example
+.terraform/

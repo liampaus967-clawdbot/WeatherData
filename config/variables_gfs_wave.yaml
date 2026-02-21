@@ -1,0 +1,234 @@
+# GFS-Wave Variables Configuration
+# Defines variables to extract from GFS-Wave GRIB2 files and their visualization settings
+#
+# GFS-Wave is a global wave model providing ocean wave forecasts
+# Reference: https://www.emc.ncep.noaa.gov/emc/pages/numerical_forecast_systems/gfs/wave.php
+
+model: gfs_wave
+product: global.0p25
+
+variables:
+  # ==========================================
+  # Primary Wave Variables
+  # ==========================================
+
+  wave_height:
+    grib_search: "HTSGW:surface"
+    display_name: "Significant Wave Height"
+    description: "Significant height of combined wind waves and swell"
+    units_source: "m"
+    units_display: "ft"
+    conversion: "meters_to_feet"
+    typical_range: [0, 50]
+    color_ramp: "wave_height"
+    priority: 1
+    enabled: true
+
+  wave_period:
+    grib_search: "PERPW:surface"
+    display_name: "Primary Wave Period"
+    description: "Primary wave mean period"
+    units_source: "s"
+    units_display: "s"
+    conversion: null
+    typical_range: [0, 25]
+    color_ramp: "wave_period"
+    priority: 1
+    enabled: false
+
+  wave_direction:
+    grib_search: "DIRPW:surface"
+    display_name: "Primary Wave Direction"
+    description: "Primary wave direction (from which waves are coming)"
+    units_source: "degree"
+    units_display: "degree"
+    conversion: null
+    typical_range: [0, 360]
+    color_ramp: "wave_direction"
+    priority: 1
+    enabled: true
+
+  # ==========================================
+  # Wind Wave Variables
+  # ==========================================
+
+  wind_wave_height:
+    grib_search: "WVHGT:surface"
+    display_name: "Wind Wave Height"
+    description: "Significant height of wind waves"
+    units_source: "m"
+    units_display: "ft"
+    conversion: "meters_to_feet"
+    typical_range: [0, 30]
+    color_ramp: "wave_height"
+    priority: 2
+    enabled: true
+
+  # ==========================================
+  # Primary Swell Variables
+  # ==========================================
+
+  swell_height_1:
+    grib_search: "SWELL:1 in sequence"
+    display_name: "Primary Swell Height"
+    description: "Significant height of primary swell"
+    units_source: "m"
+    units_display: "ft"
+    conversion: "meters_to_feet"
+    typical_range: [0, 40]
+    color_ramp: "wave_height"
+    priority: 1
+    enabled: true
+
+  swell_period_1:
+    grib_search: "SWPER:1 in sequence"
+    display_name: "Primary Swell Period"
+    description: "Mean period of primary swell"
+    units_source: "s"
+    units_display: "s"
+    conversion: null
+    typical_range: [0, 25]
+    color_ramp: "wave_period"
+    priority: 1
+    enabled: true
+
+  swell_direction_1:
+    grib_search: "SWDIR:1 in sequence"
+    display_name: "Primary Swell Direction"
+    description: "Direction of primary swell (from which swell is coming)"
+    units_source: "degree"
+    units_display: "degree"
+    conversion: null
+    typical_range: [0, 360]
+    color_ramp: "wave_direction"
+    priority: 1
+    enabled: true
+
+# ==========================================
+# Color Ramp Definitions
+# ==========================================
+
+color_ramps:
+  wave_height:
+    type: "gradient"
+    colors:
+      - value: 0
+        color: "#FFFFFF" # White (calm)
+      - value: 2
+        color: "#87CEEB" # Sky blue (light chop)
+      - value: 4
+        color: "#4169E1" # Royal blue (moderate)
+      - value: 8
+        color: "#00FF00" # Green (rough)
+      - value: 12
+        color: "#FFFF00" # Yellow (very rough)
+      - value: 20
+        color: "#FF8C00" # Dark orange (high)
+      - value: 30
+        color: "#FF0000" # Red (very high)
+      - value: 40
+        color: "#8B0000" # Dark red (phenomenal)
+      - value: 50
+        color: "#800080" # Purple (extreme)
+
+  wave_period:
+    type: "gradient"
+    colors:
+      - value: 0
+        color: "#FFFFFF" # White
+      - value: 4
+        color: "#E0FFFF" # Light cyan (short period chop)
+      - value: 8
+        color: "#00CED1" # Dark turquoise (moderate)
+      - value: 12
+        color: "#4169E1" # Royal blue (medium swell)
+      - value: 16
+        color: "#0000CD" # Medium blue (long swell)
+      - value: 20
+        color: "#00008B" # Dark blue (very long swell)
+      - value: 25
+        color: "#4B0082" # Indigo (ground swell)
+
+  wave_direction:
+    type: "circular"
+    colors:
+      - value: 0
+        color: "#FF0000" # Red (North)
+      - value: 45
+        color: "#FF8C00" # Orange (NE)
+      - value: 90
+        color: "#FFFF00" # Yellow (East)
+      - value: 135
+        color: "#00FF00" # Green (SE)
+      - value: 180
+        color: "#00FFFF" # Cyan (South)
+      - value: 225
+        color: "#0000FF" # Blue (SW)
+      - value: 270
+        color: "#8B00FF" # Violet (West)
+      - value: 315
+        color: "#FF00FF" # Magenta (NW)
+      - value: 360
+        color: "#FF0000" # Red (North - wrap around)
+
+# ==========================================
+# Unit Conversion Formulas
+# ==========================================
+
+conversions:
+  meters_to_feet:
+    formula: "value * 3.28084"
+    description: "Convert meters to feet"
+
+# ==========================================
+# Processing Configuration
+# ==========================================
+
+processing:
+  # Extract only enabled variables
+  extract_enabled_only: true
+
+  # Priority order for processing
+  process_by_priority: true
+
+  # Output format
+  output_format: "COG" # Cloud Optimized GeoTIFF
+
+  # Projection
+  target_projection: "EPSG:3857" # Web Mercator for web maps
+
+  # Target resolution in Web Mercator (meters per pixel). Use to upsample coarse
+  # source data (e.g. GFS-Wave 0.25° ~28km) for smoother display. Omit or null
+  # to keep native resolution. Example: 5000 = 5 km pixels (much finer than 28 km).
+  target_resolution_meters: 5000
+
+  # Resampling method
+  resampling_method: "bilinear"
+
+  # Compression
+  compression: "DEFLATE"
+  compress_level: 6
+
+  # Tiling (for COG)
+  tile_size: 512
+
+  # Overviews
+  create_overviews: true
+  overview_levels: [2, 4, 8, 16]
+
+  # NoData value
+  nodata_value: -9999.0
+
+# ==========================================
+# Metadata
+# ==========================================
+
+metadata:
+  source: "NOAA GFS-Wave (Global Forecast System - Wave)"
+  source_url: "https://www.emc.ncep.noaa.gov/emc/pages/numerical_forecast_systems/gfs/wave.php"
+  resolution: "0.25 degree (~28 km)"
+  coverage: "Global"
+  update_frequency: "Every 6 hours (00, 06, 12, 18 UTC)"
+  forecast_length: "0-384 hours (16 days)"
+  created_by: "Weather Data Pipeline"
+  version: "1.0"

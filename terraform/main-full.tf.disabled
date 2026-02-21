@@ -1,0 +1,211 @@
+terraform {
+  required_version = ">= 1.5.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region  = var.aws_region
+  profile = var.aws_profile
+
+  default_tags {
+    tags = var.project_tags
+  }
+}
+
+###################
+# S3 Bucket
+###################
+
+resource "aws_s3_bucket" "weather_data" {
+  bucket = var.bucket_name
+
+  tags = {
+    Name        = "Weather Data Bucket"
+    Environment = var.environment
+    Purpose     = "Store HRRR weather forecast data and processed tiles"
+  }
+}
+
+# Block public access (we'll use IAM for access control)
+resource "aws_s3_bucket_public_access_block" "weather_data_pab" {
+  bucket = aws_s3_bucket.weather_data.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# Enable versioning for processed-cog (for rollback capability)
+resource "aws_s3_bucket_versioning" "weather_data_versioning" {
+  bucket = aws_s3_bucket.weather_data.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+# Server-side encryption
+resource "aws_s3_bucket_server_side_encryption_configuration" "weather_data_encryption" {
+  bucket = aws_s3_bucket.weather_data.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+# CORS configuration for web access
+resource "aws_s3_bucket_cors_configuration" "weather_data_cors" {
+  bucket = aws_s3_bucket.weather_data.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "HEAD"]
+    allowed_origins = ["*"] # Restrict this in production
+    expose_headers  = ["ETag", "Content-Length"]
+    max_age_seconds = 3000
+  }
+}
+
+###################
+# IAM Role for EC2
+###################
+
+# IAM role that EC2 instances will assume
+resource "aws_iam_role" "ec2_weather_pipeline" {
+  name = "ec2-weather-pipeline-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name = "EC2 Weather Pipeline Role"
+  }
+}
+
+# Policy for S3 access
+resource "aws_iam_policy" "ec2_s3_access" {
+  name        = "ec2-weather-pipeline-s3-access"
+  description = "Allows EC2 instances to read/write to weather data S3 bucket"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          aws_s3_bucket.weather_data.arn,
+          "${aws_s3_bucket.weather_data.arn}/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket"
+        ]
+        Resource = "arn:aws:s3:::noaa-hrrr-bdp-pds" # NOAA public bucket
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject"
+        ]
+        Resource = "arn:aws:s3:::noaa-hrrr-bdp-pds/*"
+      }
+    ]
+  })
+}
+
+# Policy for CloudWatch Logs
+resource "aws_iam_policy" "ec2_cloudwatch_logs" {
+  name        = "ec2-weather-pipeline-cloudwatch-logs"
+  description = "Allows EC2 instances to write logs to CloudWatch"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogStreams"
+        ]
+        Resource = "arn:aws:logs:${var.aws_region}:*:log-group:/aws/weather-pipeline/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:PutMetricData"
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "cloudwatch:namespace" = "WeatherPipeline"
+          }
+        }
+      }
+    ]
+  })
+}
+
+# Attach policies to role
+resource "aws_iam_role_policy_attachment" "ec2_s3_access" {
+  role       = aws_iam_role.ec2_weather_pipeline.name
+  policy_arn = aws_iam_policy.ec2_s3_access.arn
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_cloudwatch_logs" {
+  role       = aws_iam_role.ec2_weather_pipeline.name
+  policy_arn = aws_iam_policy.ec2_cloudwatch_logs.arn
+}
+
+# Attach AWS managed policy for SSM (Systems Manager) access
+resource "aws_iam_role_policy_attachment" "ec2_ssm_managed_instance" {
+  role       = aws_iam_role.ec2_weather_pipeline.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+# Instance profile for EC2 (required to attach role to instance)
+resource "aws_iam_instance_profile" "ec2_weather_pipeline" {
+  name = "ec2-weather-pipeline-profile"
+  role = aws_iam_role.ec2_weather_pipeline.name
+}
+
+###################
+# CloudWatch Log Groups
+###################
+
+resource "aws_cloudwatch_log_group" "weather_pipeline" {
+  name              = "/aws/weather-pipeline"
+  retention_in_days = 30
+
+  tags = {
+    Name = "Weather Pipeline Logs"
+  }
+}

@@ -1,0 +1,778 @@
+# Weather Variables Configuration
+# Defines variables to extract from GRIB2 files and their visualization settings
+#
+# Each variable includes:
+# - grib_search: Herbie/GRIB2 search string
+# - display_name: User-friendly name for display
+# - description: What this variable represents
+# - units_source: Units as stored in GRIB2
+# - units_display: Units to convert to for display
+# - conversion: Formula to convert units (if needed)
+# - typical_range: Expected min/max values for visualization
+# - color_ramp: Color scheme to use
+# - priority: Processing priority (1=highest)
+# - enabled: Whether to process this variable
+
+# HRRR Model Variables
+# Reference: https://www.nco.ncep.noaa.gov/pmb/products/hrrr/
+
+model: hrrr
+product: sfc
+
+variables:
+  # ==========================================
+  # Temperature Variables (Priority 1)
+  # ==========================================
+
+  temperature_2m:
+    grib_search: "TMP:2 m"
+    display_name: "Temperature (2m)"
+    description: "Air temperature at 2 meters above ground"
+    units_source: "K"
+    units_display: "°C"
+    conversion: "kelvin_to_celsius" # K - 273.15
+    typical_range: [-40, 50]
+    color_ramp: "temperature"
+    priority: 1
+    enabled: true
+
+  temperature_surface:
+    grib_search: "TMP:surface"
+    display_name: "Surface Temperature"
+    description: "Temperature at the surface"
+    units_source: "K"
+    units_display: "°C"
+    conversion: "kelvin_to_celsius"
+    typical_range: [-40, 50]
+    color_ramp: "temperature"
+    priority: 3
+    enabled: false # Usually use 2m temp instead
+
+  dewpoint_2m:
+    grib_search: "DPT:2 m"
+    display_name: "Dewpoint (2m)"
+    description: "Dewpoint temperature at 2 meters"
+    units_source: "K"
+    units_display: "°C"
+    conversion: "kelvin_to_celsius"
+    typical_range: [-40, 40]
+    color_ramp: "dewpoint"
+    priority: 2
+    enabled: true
+
+  # ==========================================
+  # Wind Variables (Priority 1)
+  # ==========================================
+
+  wind_u_10m:
+    grib_search: "UGRD:10 m"
+    display_name: "U-Wind (10m)"
+    description: "U-component of wind at 10 meters (east-west)"
+    units_source: "m/s"
+    units_display: "m/s"
+    conversion: null
+    typical_range: [-50, 50]
+    color_ramp: "wind_component"
+    priority: 2
+    enabled: false
+
+  wind_v_10m:
+    grib_search: "VGRD:10 m"
+    display_name: "V-Wind (10m)"
+    description: "V-component of wind at 10 meters (north-south)"
+    units_source: "m/s"
+    units_display: "m/s"
+    conversion: null
+    typical_range: [-50, 50]
+    color_ramp: "wind_component"
+    priority: 2
+    enabled: false
+
+  wind_gust_surface:
+    grib_search: "GUST:surface"
+    display_name: "Wind Gust"
+    description: "Surface wind gust"
+    units_source: "m/s"
+    units_display: "mph"
+    conversion: "ms_to_mph" # m/s * 2.23694
+    typical_range: [0, 100]
+    color_ramp: "wind_speed"
+    priority: 2
+    enabled: false
+
+  # ==========================================
+  # Moisture Variables (Priority 2)
+  # ==========================================
+
+  relative_humidity_2m:
+    grib_search: "RH:2 m"
+    display_name: "Relative Humidity (2m)"
+    description: "Relative humidity at 2 meters"
+    units_source: "%"
+    units_display: "%"
+    conversion: null
+    typical_range: [0, 100]
+    color_ramp: "humidity"
+    priority: 2
+    enabled: false
+
+  # ==========================================
+  # Precipitation Variables (Priority 1)
+  # ==========================================
+
+  precipitation_accumulated:
+    grib_search: "APCP:surface"
+    display_name: "Accumulated Precipitation"
+    description: "Total accumulated precipitation"
+    units_source: "kg/m^2"
+    units_display: "in"
+    conversion: "kgm2_to_inches" # kg/m^2 * 0.0393701
+    typical_range: [0, 10]
+    color_ramp: "precipitation"
+    priority: 2
+    enabled: false
+
+  precipitation_rate:
+    grib_search: "PRATE:surface"
+    display_name: "Precipitation Rate"
+    description: "Precipitation rate"
+    units_source: "kg/m^2/s"
+    units_display: "in/hr"
+    conversion: "rate_to_inches_per_hour"
+    typical_range: [0, 5]
+    color_ramp: "precipitation_rate"
+    priority: 3
+    enabled: false
+
+  # ==========================================
+  # Cloud Variables (Priority 2)
+  # ==========================================
+
+  cloud_cover_total:
+    grib_search: "TCDC:entire atmosphere"
+    display_name: "Total Cloud Cover"
+    description: "Total cloud cover for entire atmosphere"
+    units_source: "%"
+    units_display: "%"
+    conversion: null
+    typical_range: [0, 100]
+    color_ramp: "cloud_cover"
+    priority: 1
+    enabled: false
+
+  cloud_cover_low:
+    grib_search: "LCDC:low cloud layer"
+    display_name: "Low Cloud Cover"
+    description: "Low cloud layer coverage"
+    units_source: "%"
+    units_display: "%"
+    conversion: null
+    typical_range: [0, 100]
+    color_ramp: "cloud_cover"
+    priority: 1
+    enabled: false
+
+  cloud_cover_mid:
+    grib_search: "MCDC:middle cloud layer"
+    display_name: "Mid Cloud Cover"
+    description: "Middle cloud layer coverage"
+    units_source: "%"
+    units_display: "%"
+    conversion: null
+    typical_range: [0, 100]
+    color_ramp: "cloud_cover"
+    priority: 3
+    enabled: false
+
+  cloud_cover_high:
+    grib_search: "HCDC:high cloud layer"
+    display_name: "High Cloud Cover"
+    description: "High cloud layer coverage"
+    units_source: "%"
+    units_display: "%"
+    conversion: null
+    typical_range: [0, 100]
+    color_ramp: "cloud_cover"
+    priority: 3
+    enabled: false
+
+  # ==========================================
+  # Severe Weather Variables (Priority 1)
+  # ==========================================
+
+  reflectivity_composite:
+    grib_search: "REFC:entire atmosphere"
+    display_name: "Composite Reflectivity"
+    description: "Composite reflectivity (radar-like)"
+    units_source: "dBZ"
+    units_display: "dBZ"
+    conversion: null
+    typical_range: [-20, 80]
+    color_ramp: "reflectivity"
+    priority: 2
+    enabled: false
+
+  cape:
+    grib_search: "CAPE:surface"
+    display_name: "CAPE"
+    description: "Convective Available Potential Energy"
+    units_source: "J/kg"
+    units_display: "J/kg"
+    conversion: null
+    typical_range: [0, 5000]
+    color_ramp: "cape"
+    priority: 2
+    enabled: true
+
+  cin:
+    grib_search: "CIN:surface"
+    display_name: "CIN"
+    description: "Convective Inhibition"
+    units_source: "J/kg"
+    units_display: "J/kg"
+    conversion: null
+    typical_range: [-500, 0]
+    color_ramp: "cin"
+    priority: 3
+    enabled: false
+
+  helicity:
+    grib_search: "HLCY:3000-0 m above ground"
+    display_name: "Storm Relative Helicity"
+    description: "Storm relative helicity 0-3km"
+    units_source: "m^2/s^2"
+    units_display: "m^2/s^2"
+    conversion: null
+    typical_range: [0, 600]
+    color_ramp: "helicity"
+    priority: 2
+    enabled: false
+
+  # ==========================================
+  # Visibility & Other (Priority 3)
+  # ==========================================
+
+  visibility:
+    grib_search: "VIS:surface"
+    display_name: "Visibility"
+    description: "Horizontal visibility"
+    units_source: "m"
+    units_display: "mi"
+    conversion: "meters_to_miles" # m * 0.000621371
+    typical_range: [0, 20]
+    color_ramp: "visibility"
+    priority: 2
+    enabled: false
+
+  snow_depth:
+    grib_search: "SNOD:surface"
+    display_name: "Snow Depth"
+    description: "Snow depth on ground"
+    units_source: "m"
+    units_display: "in"
+    conversion: "meters_to_inches" # m * 39.3701
+    typical_range: [0, 100]
+    color_ramp: "snow_depth"
+    priority: 1
+    enabled: true
+
+  snow_cover:
+    grib_search: "SNOWC:surface"
+    display_name: "Snow Cover"
+    description: "Percent snow cover"
+    units_source: "%"
+    units_display: "%"
+    conversion: null
+    typical_range: [0, 100]
+    color_ramp: "snow_cover"
+    priority: 1
+    enabled: true
+
+  # ==========================================
+  # Precipitation Type Variables (Priority 2)
+  # ==========================================
+
+  categorical_rain:
+    grib_search: "CRAIN:surface"
+    display_name: "Categorical Rain"
+    description: "Categorical rain (1=yes, 0=no)"
+    units_source: "categorical"
+    units_display: "yes/no"
+    conversion: null
+    typical_range: [0, 1]
+    color_ramp: "categorical_precip"
+    priority: 1
+    enabled: false
+
+  categorical_snow:
+    grib_search: "CSNOW:surface"
+    display_name: "Categorical Snow"
+    description: "Categorical snow (1=yes, 0=no)"
+    units_source: "categorical"
+    units_display: "yes/no"
+    conversion: null
+    typical_range: [0, 1]
+    color_ramp: "categorical_precip"
+    priority: 1
+    enabled: true
+
+  categorical_freezing_rain:
+    grib_search: "CFRZR:surface"
+    display_name: "Categorical Freezing Rain"
+    description: "Categorical freezing rain (1=yes, 0=no)"
+    units_source: "categorical"
+    units_display: "yes/no"
+    conversion: null
+    typical_range: [0, 1]
+    color_ramp: "categorical_precip"
+    priority: 1
+    enabled: false
+
+  categorical_ice_pellets:
+    grib_search: "CICEP:surface"
+    display_name: "Categorical Ice Pellets"
+    description: "Categorical ice pellets/sleet (1=yes, 0=no)"
+    units_source: "categorical"
+    units_display: "yes/no"
+    conversion: null
+    typical_range: [0, 1]
+    color_ramp: "categorical_precip"
+    priority: 1
+    enabled: false
+
+  accumulated_snow:
+    grib_search: "ASNOW:surface"
+    display_name: "Accumulated Snowfall"
+    description: "Total accumulated snowfall"
+    units_source: "m"
+    units_display: "in"
+    conversion: "meters_to_inches"
+    typical_range: [0, 48]
+    color_ramp: "snow_accumulation"
+    priority: 1
+    enabled: true
+
+  # ==========================================
+  # Air Quality Variables (Priority 2)
+  # ==========================================
+
+  smoke_concentration:
+    grib_search: "MASSDEN:8 m"
+    display_name: "Smoke Concentration"
+    description: "Near-surface smoke mass concentration at 8m AGL"
+    units_source: "kg/m^3"
+    units_display: "μg/m³"
+    conversion: "kgm3_to_ugm3"
+    typical_range: [0, 500]
+    color_ramp: "smoke"
+    priority: 1
+    enabled: true
+
+# ==========================================
+# Color Ramp Definitions
+# ==========================================
+
+color_ramps:
+  temperature:
+    type: "gradient"
+    colors:
+      - value: -40
+        color: "#1a0066" # Deep purple (extreme cold)
+      - value: -30
+        color: "#4d0099" # Purple
+      - value: -20
+        color: "#0000ff" # Blue
+      - value: -10
+        color: "#00ccff" # Cyan
+      - value: 0
+        color: "#00ff00" # Green (freezing)
+      - value: 10
+        color: "#99ff00" # Yellow-green
+      - value: 20
+        color: "#ffff00" # Yellow (room temp)
+      - value: 30
+        color: "#ffcc00" # Orange
+      - value: 40
+        color: "#ff6600" # Dark orange (hot)
+      - value: 50
+        color: "#ff0000" # Red (extreme heat)
+
+  dewpoint:
+    type: "gradient"
+    colors:
+      - value: -40
+        color: "#8B4513" # Saddle brown (very dry)
+      - value: -20
+        color: "#D2691E" # Chocolate
+      - value: 0
+        color: "#FFD700" # Gold
+      - value: 10
+        color: "#90EE90" # Light green
+      - value: 20
+        color: "#00CED1" # Dark turquoise (humid)
+      - value: 30
+        color: "#0000CD" # Medium blue (very humid)
+      - value: 40
+        color: "#4B0082" # Indigo (oppressive)
+
+  wind_speed:
+    type: "gradient"
+    colors:
+      - value: 0
+        color: "#FFFFFF" # White (calm)
+      - value: 5
+        color: "#E0FFFF" # Light cyan
+      - value: 10
+        color: "#87CEEB" # Sky blue
+      - value: 20
+        color: "#4169E1" # Royal blue
+      - value: 30
+        color: "#FF8C00" # Dark orange
+      - value: 50
+        color: "#FF0000" # Red (strong winds)
+      - value: 75
+        color: "#8B0000" # Dark red (damaging)
+      - value: 100
+        color: "#800080" # Purple (extreme)
+
+  wind_component:
+    type: "diverging"
+    colors:
+      - value: -50
+        color: "#0000FF" # Blue (westward/southward)
+      - value: -25
+        color: "#87CEEB" # Light blue
+      - value: 0
+        color: "#FFFFFF" # White (calm)
+      - value: 25
+        color: "#FFA500" # Orange
+      - value: 50
+        color: "#FF0000" # Red (eastward/northward)
+
+  humidity:
+    type: "gradient"
+    colors:
+      - value: 0
+        color: "#8B4513" # Saddle brown (dry)
+      - value: 20
+        color: "#FFD700" # Gold
+      - value: 40
+        color: "#ADFF2F" # Green yellow
+      - value: 60
+        color: "#00CED1" # Dark turquoise
+      - value: 80
+        color: "#0000CD" # Medium blue
+      - value: 100
+        color: "#00008B" # Dark blue (saturated)
+
+  precipitation:
+    type: "gradient"
+    colors:
+      - value: 0
+        color: "#FFFFFF" # White (none)
+      - value: 0.01
+        color: "#E0FFFF" # Light cyan (trace)
+      - value: 0.1
+        color: "#87CEEB" # Sky blue (light)
+      - value: 0.5
+        color: "#4169E1" # Royal blue (moderate)
+      - value: 1.0
+        color: "#0000CD" # Medium blue (heavy)
+      - value: 2.0
+        color: "#FF00FF" # Magenta (very heavy)
+      - value: 5.0
+        color: "#8B008B" # Dark magenta (extreme)
+      - value: 10.0
+        color: "#4B0082" # Indigo (historic)
+
+  precipitation_rate:
+    type: "gradient"
+    colors:
+      - value: 0
+        color: "#FFFFFF" # White
+      - value: 0.1
+        color: "#87CEEB" # Sky blue
+      - value: 0.5
+        color: "#4169E1" # Royal blue
+      - value: 1.0
+        color: "#FF00FF" # Magenta
+      - value: 2.5
+        color: "#8B008B" # Dark magenta
+      - value: 5.0
+        color: "#4B0082" # Indigo
+
+  cloud_cover:
+    type: "gradient"
+    colors:
+      - value: 0
+        color: "#87CEEB" # Sky blue (clear)
+      - value: 25
+        color: "#B0C4DE" # Light steel blue
+      - value: 50
+        color: "#778899" # Light slate gray
+      - value: 75
+        color: "#696969" # Dim gray
+      - value: 100
+        color: "#2F4F4F" # Dark slate gray (overcast)
+
+  reflectivity:
+    type: "gradient"
+    colors:
+      - value: -20
+        color: "#FFFFFF" # White (no echo)
+      - value: 0
+        color: "#00FFFF" # Cyan (weak)
+      - value: 20
+        color: "#0000FF" # Blue (light rain)
+      - value: 30
+        color: "#00FF00" # Green (moderate rain)
+      - value: 40
+        color: "#FFFF00" # Yellow (heavy rain)
+      - value: 50
+        color: "#FF0000" # Red (very heavy)
+      - value: 60
+        color: "#FF00FF" # Magenta (severe)
+      - value: 70
+        color: "#FFFFFF" # White (hail likely)
+      - value: 80
+        color: "#FFB6C1" # Light pink (extreme)
+
+  cape:
+    type: "gradient"
+    colors:
+      - value: 0
+        color: "#FFFFFF" # White (stable)
+      - value: 500
+        color: "#FFFF99" # Light yellow
+      - value: 1000
+        color: "#FFFF00" # Yellow (weak instability)
+      - value: 1500
+        color: "#FFA500" # Orange (moderate)
+      - value: 2500
+        color: "#FF4500" # Orange red (strong)
+      - value: 4000
+        color: "#FF0000" # Red (extreme)
+      - value: 5000
+        color: "#8B0000" # Dark red (violent)
+
+  cin:
+    type: "gradient"
+    colors:
+      - value: -500
+        color: "#8B0000" # Dark red (strong cap)
+      - value: -200
+        color: "#FF4500" # Orange red
+      - value: -100
+        color: "#FFA500" # Orange
+      - value: -50
+        color: "#FFFF00" # Yellow (weak cap)
+      - value: 0
+        color: "#FFFFFF" # White (no cap)
+
+  helicity:
+    type: "gradient"
+    colors:
+      - value: 0
+        color: "#FFFFFF" # White (no rotation)
+      - value: 100
+        color: "#FFFF00" # Yellow
+      - value: 200
+        color: "#FFA500" # Orange (moderate rotation)
+      - value: 300
+        color: "#FF4500" # Orange red
+      - value: 400
+        color: "#FF0000" # Red (strong rotation)
+      - value: 600
+        color: "#8B0000" # Dark red (violent rotation)
+
+  visibility:
+    type: "gradient"
+    colors:
+      - value: 0
+        color: "#4B0082" # Indigo (zero viz)
+      - value: 1
+        color: "#8B008B" # Dark magenta (fog)
+      - value: 3
+        color: "#FF00FF" # Magenta (poor)
+      - value: 6
+        color: "#FFD700" # Gold (marginal)
+      - value: 10
+        color: "#90EE90" # Light green (good)
+      - value: 20
+        color: "#00FF00" # Green (excellent)
+
+  snow_depth:
+    type: "gradient"
+    colors:
+      - value: 0
+        color: "#8B4513" # Saddle brown (bare ground)
+      - value: 1
+        color: "#E6E6FA" # Lavender (dusting)
+      - value: 6
+        color: "#B0E0E6" # Powder blue (light)
+      - value: 12
+        color: "#87CEEB" # Sky blue (moderate)
+      - value: 24
+        color: "#4169E1" # Royal blue (heavy)
+      - value: 50
+        color: "#0000CD" # Medium blue (deep)
+      - value: 100
+        color: "#00008B" # Dark blue (extreme)
+
+  snow_cover:
+    type: "gradient"
+    colors:
+      - value: 0
+        color: "#8B4513" # Saddle brown (no snow)
+      - value: 25
+        color: "#D3D3D3" # Light gray (patchy)
+      - value: 50
+        color: "#C0C0C0" # Silver
+      - value: 75
+        color: "#F0F8FF" # Alice blue
+      - value: 100
+        color: "#FFFFFF" # White (complete coverage)
+
+  categorical_precip:
+    type: "categorical"
+    colors:
+      - value: 0
+        color: "#00000000" # Transparent (no precip)
+      - value: 1
+        color: "#00FF00" # Green (precip occurring)
+
+  snow_accumulation:
+    type: "gradient"
+    colors:
+      - value: 0
+        color: "#FFFFFF00" # Transparent (none)
+      - value: 1
+        color: "#E6E6FA" # Lavender (trace)
+      - value: 3
+        color: "#B0E0E6" # Powder blue (light)
+      - value: 6
+        color: "#87CEEB" # Sky blue
+      - value: 12
+        color: "#4169E1" # Royal blue (moderate)
+      - value: 24
+        color: "#0000CD" # Medium blue (heavy)
+      - value: 36
+        color: "#00008B" # Dark blue
+      - value: 48
+        color: "#4B0082" # Indigo (extreme)
+
+  smoke:
+    type: "gradient"
+    colors:
+      - value: 0
+        color: "#FFFFFF00" # Transparent (clean air)
+      - value: 12
+        color: "#00FF00" # Green (good)
+      - value: 35
+        color: "#FFFF00" # Yellow (moderate)
+      - value: 55
+        color: "#FF8C00" # Orange (unhealthy for sensitive)
+      - value: 150
+        color: "#FF0000" # Red (unhealthy)
+      - value: 250
+        color: "#800080" # Purple (very unhealthy)
+      - value: 500
+        color: "#800000" # Maroon (hazardous)
+
+# ==========================================
+# Unit Conversion Formulas
+# ==========================================
+
+conversions:
+  kelvin_to_celsius:
+    formula: "value - 273.15"
+    description: "Convert Kelvin to Celsius"
+
+  kelvin_to_fahrenheit:
+    formula: "(value - 273.15) * 9/5 + 32"
+    description: "Convert Kelvin to Fahrenheit"
+
+  ms_to_mph:
+    formula: "value * 2.23694"
+    description: "Convert meters per second to miles per hour"
+
+  ms_to_kmh:
+    formula: "value * 3.6"
+    description: "Convert meters per second to kilometers per hour"
+
+  kgm2_to_inches:
+    formula: "value * 0.0393701"
+    description: "Convert kg/m^2 to inches (precipitation)"
+
+  kgm2_to_mm:
+    formula: "value"
+    description: "kg/m^2 is equivalent to mm for water"
+
+  rate_to_inches_per_hour:
+    formula: "value * 0.0393701 * 3600"
+    description: "Convert kg/m^2/s to inches per hour"
+
+  meters_to_miles:
+    formula: "value * 0.000621371"
+    description: "Convert meters to miles"
+
+  meters_to_feet:
+    formula: "value * 3.28084"
+    description: "Convert meters to feet"
+
+  meters_to_inches:
+    formula: "value * 39.3701"
+    description: "Convert meters to inches"
+
+  kgm3_to_ugm3:
+    formula: "value * 1e9"
+    description: "Convert kg/m³ to μg/m³ (smoke concentration)"
+
+# ==========================================
+# Processing Configuration
+# ==========================================
+
+processing:
+  # Extract only enabled variables
+  extract_enabled_only: true
+
+  # Priority order for processing
+  process_by_priority: true
+
+  # Output format
+  output_format: "COG" # Cloud Optimized GeoTIFF
+
+  # Projection
+  target_projection: "EPSG:3857" # Web Mercator for web maps
+
+  # Resampling method
+  resampling_method: "bilinear"
+
+  # Compression
+  compression: "DEFLATE"
+  compress_level: 6
+
+  # Tiling (for COG)
+  tile_size: 512
+
+  # Overviews
+  create_overviews: true
+  overview_levels: [2, 4, 8, 16]
+
+  # NoData value
+  nodata_value: -9999.0
+
+# ==========================================
+# Metadata
+# ==========================================
+
+metadata:
+  source: "NOAA HRRR (High-Resolution Rapid Refresh)"
+  source_url: "https://rapidrefresh.noaa.gov/hrrr/"
+  resolution: "3 km"
+  coverage: "Continental United States"
+  update_frequency: "Hourly"
+  forecast_length: "0-48 hours"
+  created_by: "Weather Data Pipeline"
+  version: "1.0"
+  last_updated: "2026-01-10"

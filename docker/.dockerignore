@@ -1,0 +1,48 @@
+# Python
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.Python
+**/env
+**/venv
+**/.env
+**/.venv
+**/.pytest_cache
+**/.coverage
+**/htmlcov
+**/*.egg-info
+**/.eggs
+**/dist
+**/build
+
+# Git
+**/.git
+**/.gitignore
+**/.gitattributes
+
+# Docker
+**/.dockerignore
+**/Dockerfile
+**/docker-compose.yml
+
+# IDE
+**/.vscode
+**/.idea
+**/*.swp
+**/*.swo
+**/*~
+**/.DS_Store
+
+# Documentation
+**/*.md
+!requirements.txt
+
+# Test data
+**/test-data/
+**/tests/
+**/*.log
+
+# Temporary files
+**/tmp/
+**/.cache/

@@ -1,0 +1,104 @@
+# Outputs for easy reference and use in scripts
+
+###################
+# S3 Outputs
+###################
+
+output "bucket_name" {
+  description = "The name of the S3 bucket"
+  value       = aws_s3_bucket.weather_data.id
+}
+
+output "bucket_arn" {
+  description = "The ARN of the S3 bucket"
+  value       = aws_s3_bucket.weather_data.arn
+}
+
+output "bucket_region" {
+  description = "The region where the bucket is deployed"
+  value       = aws_s3_bucket.weather_data.region
+}
+
+output "bucket_domain_name" {
+  description = "The bucket domain name"
+  value       = aws_s3_bucket.weather_data.bucket_domain_name
+}
+
+output "bucket_regional_domain_name" {
+  description = "The bucket regional domain name"
+  value       = aws_s3_bucket.weather_data.bucket_regional_domain_name
+}
+
+###################
+# IAM Outputs
+###################
+
+output "ec2_iam_role_name" {
+  description = "Name of the IAM role for EC2 instances"
+  value       = aws_iam_role.ec2_weather_pipeline.name
+}
+
+output "ec2_iam_role_arn" {
+  description = "ARN of the IAM role for EC2 instances"
+  value       = aws_iam_role.ec2_weather_pipeline.arn
+}
+
+output "ec2_instance_profile_name" {
+  description = "Name of the instance profile to attach to EC2"
+  value       = aws_iam_instance_profile.ec2_weather_pipeline.name
+}
+
+output "ec2_instance_profile_arn" {
+  description = "ARN of the instance profile to attach to EC2"
+  value       = aws_iam_instance_profile.ec2_weather_pipeline.arn
+}
+
+###################
+# CloudWatch Outputs
+###################
+
+output "cloudwatch_log_group_name" {
+  description = "Name of the CloudWatch log group for pipeline logs"
+  value       = aws_cloudwatch_log_group.weather_pipeline.name
+}
+
+output "cloudwatch_log_group_arn" {
+  description = "ARN of the CloudWatch log group"
+  value       = aws_cloudwatch_log_group.weather_pipeline.arn
+}
+
+###################
+# Example Commands
+###################
+
+output "example_s3_upload_command" {
+  description = "Example AWS CLI command to upload a file"
+  value       = "aws s3 cp your-file.tif s3://${aws_s3_bucket.weather_data.id}/processed-cog/temperature/2026-01-09T12Z/f00.tif"
+}
+
+output "example_s3_list_command" {
+  description = "Example AWS CLI command to list bucket contents"
+  value       = "aws s3 ls s3://${aws_s3_bucket.weather_data.id}/ --recursive"
+}
+
+###################
+# Configuration for Scripts
+###################
+
+output "configuration_json" {
+  description = "JSON configuration for use in scripts"
+  value = jsonencode({
+    bucket = {
+      name   = aws_s3_bucket.weather_data.id
+      region = aws_s3_bucket.weather_data.region
+      arn    = aws_s3_bucket.weather_data.arn
+    }
+    iam = {
+      role_name            = aws_iam_role.ec2_weather_pipeline.name
+      instance_profile_arn = aws_iam_instance_profile.ec2_weather_pipeline.arn
+    }
+    cloudwatch = {
+      log_group = aws_cloudwatch_log_group.weather_pipeline.name
+    }
+  })
+}
