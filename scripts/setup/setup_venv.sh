@@ -47,9 +47,14 @@ case "$OS_ID" in
     ubuntu|debian)
         echo "Detected Ubuntu/Debian"
         
-        # Add UbuntuGIS PPA for latest GDAL (Ubuntu only)
+        # Add UbuntuGIS PPA for latest GDAL (Ubuntu < 24.04 only)
+        # Noble (24.04) has GDAL 3.8+ in default repos
         if [[ "$OS_ID" == "ubuntu" ]]; then
-            $SUDO add-apt-repository -y ppa:ubuntugis/ppa 2>/dev/null || true
+            source /etc/os-release
+            if [[ "${VERSION_ID:-}" < "24.04" ]]; then
+                echo "Adding UbuntuGIS PPA for older Ubuntu..."
+                $SUDO add-apt-repository -y ppa:ubuntugis/ppa 2>/dev/null || true
+            fi
         fi
         
         $SUDO apt-get update
