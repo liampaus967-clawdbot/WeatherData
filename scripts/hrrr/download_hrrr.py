@@ -12,6 +12,7 @@ Usage:
 
 import argparse
 import logging
+import os
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -25,7 +26,7 @@ import xarray as xr
 
 
 # Configuration
-DEFAULT_S3_BUCKET = "sat-data-container"
+DEFAULT_S3_BUCKET = os.environ.get("S3_BUCKET", "driftwise-dev-assets")
 DEFAULT_MODEL = "hrrr"
 DEFAULT_PRODUCT = "sfc"  # Surface level product
 TEMP_DIR = Path("/tmp/weather-data")

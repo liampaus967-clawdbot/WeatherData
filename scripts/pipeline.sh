@@ -26,7 +26,9 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Source .env file if it exists
 if [[ -f "$PROJECT_ROOT/.env" ]]; then
+    set -a  # Export all variables
     source "$PROJECT_ROOT/.env"
+    set +a
 fi
 LOG_DIR="${LOG_DIR:-/var/log/weather-pipeline}"
 WORK_DIR="${WORK_DIR:-/tmp/weather-pipeline}"
