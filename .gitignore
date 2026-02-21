@@ -1,4 +1,8 @@
 .env
+venv/
+__pycache__/
+*.pyc
+*.pyo
 
 # Old terraform directory with hardcoded credentials - DO NOT COMMIT
 terraform_s3/

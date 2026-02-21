@@ -23,6 +23,11 @@ set -euo pipefail  # Exit on error, undefined variables, and pipe failures
 # Default configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Source .env file if it exists
+if [[ -f "$PROJECT_ROOT/.env" ]]; then
+    source "$PROJECT_ROOT/.env"
+fi
 LOG_DIR="${LOG_DIR:-/var/log/gfs-wave-pipeline}"
 WORK_DIR="${WORK_DIR:-/tmp/gfs-wave-pipeline}"
 S3_BUCKET="${S3_BUCKET:-}"

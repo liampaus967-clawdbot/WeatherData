@@ -23,6 +23,11 @@ set -euo pipefail  # Exit on error, undefined variables, and pipe failures
 # Default configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Source .env file if it exists
+if [[ -f "$PROJECT_ROOT/.env" ]]; then
+    source "$PROJECT_ROOT/.env"
+fi
 LOG_DIR="${LOG_DIR:-/var/log/weather-pipeline}"
 WORK_DIR="${WORK_DIR:-/tmp/weather-pipeline}"
 S3_BUCKET="${S3_BUCKET:-}"
@@ -33,6 +38,9 @@ PRIORITY="${PRIORITY:-1}"
 ZOOM_LEVELS="${ZOOM_LEVELS:-0-6}"
 TILE_PROCESSES="${TILE_PROCESSES:-4}"
 FORECAST_HOURS="${FORECAST_HOURS:-0-12}"  # Forecast hours to download (e.g., "0-6", "0-12", "0,3,6")
+
+# Virtual environment
+VENV_DIR="${VENV_DIR:-$PROJECT_ROOT/venv}"
 
 # Timestamps
 START_TIME=$(date +%s)
@@ -111,9 +119,16 @@ check_dependencies() {
 
     local missing_deps=()
 
-    # Check Docker (required for all processing steps)
-    if ! command -v docker &> /dev/null; then
-        missing_deps+=("docker")
+    # Check Python venv exists
+    if [[ ! -f "$VENV_DIR/bin/activate" ]]; then
+        log_error "Python venv not found at $VENV_DIR"
+        log_error "Run: ./scripts/setup/setup_venv.sh"
+        missing_deps+=("venv")
+    fi
+
+    # Check GDAL is installed
+    if ! command -v gdalinfo &> /dev/null; then
+        missing_deps+=("gdal")
     fi
 
     # Check AWS CLI (if S3 upload enabled)
@@ -125,6 +140,10 @@ check_dependencies() {
         log_error "Missing dependencies: ${missing_deps[*]}"
         return 1
     fi
+
+    # Activate venv
+    source "$VENV_DIR/bin/activate"
+    log_info "Activated venv: $(which python)"
 
     log_success "All dependencies found"
     return 0
@@ -173,19 +192,15 @@ download_data() {
         return 0
     fi
 
-    local cmd="docker run --rm \
-        --user $(id -u):$(id -g) \
-        -e HOME=/tmp \
-        -e HERBIE_HOME=/data/output \
-        -v $download_dir:/data/output \
-        -v $PROJECT_ROOT:/app \
-        weather-processor:latest \
-        python3 /app/scripts/hrrr/download_hrrr.py \
+    # Set Herbie cache directory
+    export HERBIE_HOME="$download_dir"
+    
+    local cmd="python $PROJECT_ROOT/scripts/hrrr/download_hrrr.py \
         --date $MODEL_DATE \
         --cycle=$MODEL_CYCLE \
         --fxx $FORECAST_HOURS \
         --variables all \
-        --output /data/output \
+        --output $download_dir \
         --keep-local"
 
     log_info "Executing: $cmd"
@@ -250,16 +265,9 @@ process_grib2() {
         processed_count=$((processed_count + 1))
         log_info "Processing GRIB file $processed_count/$total_files: $grib_name"
 
-        local cmd="docker run --rm \
-            --user $(id -u):$(id -g) \
-            -e HOME=/tmp \
-            -v $DOWNLOAD_DIR:/data/input \
-            -v $processed_dir:/data/output \
-            -v $PROJECT_ROOT:/app \
-            weather-processor:latest \
-            python3 /app/scripts/processing/process_weather.py \
-            --input /data/input/$grib_name \
-            --output /data/output \
+        local cmd="python $PROJECT_ROOT/scripts/processing/process_weather.py \
+            --input $DOWNLOAD_DIR/$grib_name \
+            --output $processed_dir \
             --priority $PRIORITY"
 
         if $cmd >> "$LOG_FILE" 2>&1; then
@@ -305,16 +313,9 @@ apply_colormaps() {
         return 0
     fi
 
-    local cmd="docker run --rm \
-        --user $(id -u):$(id -g) \
-        -e HOME=/tmp \
-        -v $PROCESSED_DIR:/data/input \
-        -v $colored_dir:/data/output \
-        -v $PROJECT_ROOT:/app \
-        weather-processor:latest \
-        python3 /app/scripts/processing/apply_colormap.py \
-        --input /data/input \
-        --output /data/output"
+    local cmd="python $PROJECT_ROOT/scripts/processing/apply_colormap.py \
+        --input $PROCESSED_DIR \
+        --output $colored_dir"
 
     log_info "Executing: $cmd"
 
@@ -356,16 +357,9 @@ generate_tiles() {
         return 0
     fi
 
-    local cmd="docker run --rm \
-        --user $(id -u):$(id -g) \
-        -e HOME=/tmp \
-        -v $COLORED_DIR:/data/input \
-        -v $tiles_dir:/data/output \
-        -v $PROJECT_ROOT:/app \
-        weather-processor:latest \
-        python3 /app/scripts/processing/generate_tiles.py \
-        --input /data/input \
-        --output /data/output \
+    local cmd="python $PROJECT_ROOT/scripts/processing/generate_tiles.py \
+        --input $COLORED_DIR \
+        --output $tiles_dir \
         --zoom $ZOOM_LEVELS \
         --processes $TILE_PROCESSES \
         --exclude-transparent \
@@ -453,20 +447,13 @@ generate_metadata() {
     fi
 
     # Use Python script to generate comprehensive metadata
-    local cmd="docker run --rm \
-        --user $(id -u):$(id -g) \
-        -e HOME=/tmp \
-        -v $TILES_DIR:/data/tiles \
-        -v $metadata_dir:/data/output \
-        -v $PROJECT_ROOT:/app \
-        weather-processor:latest \
-        python3 /app/scripts/generate_metadata.py \
+    local cmd="python $PROJECT_ROOT/scripts/generate_metadata.py \
         --date $MODEL_DATE \
         --cycle=$MODEL_CYCLE \
         --s3-bucket $S3_BUCKET \
-        --tiles-dir /data/tiles \
-        --config /app/config/variables.yaml \
-        --output /data/output/latest.json"
+        --tiles-dir $TILES_DIR \
+        --config $PROJECT_ROOT/config/variables.yaml \
+        --output $metadata_dir/latest.json"
 
     log_info "Executing metadata generation..."
 

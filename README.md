@@ -31,7 +31,7 @@ This project automates the process of downloading HRRR (High-Resolution Rapid Re
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
 │  │  Download    │→ │  GDAL        │→ │  Upload      │         │
 │  │  Script      │  │  Processing  │  │  to S3       │         │
-│  │  (Python)    │  │  (Docker)    │  │  (AWS CLI)   │         │
+│  │  (Python)    │  │  (venv)      │  │  (AWS CLI)   │         │
 │  └──────────────┘  └──────────────┘  └──────────────┘         │
 └────────────────────────┬────────────────────────────────────────┘
                          │
@@ -196,13 +196,13 @@ _Note: Costs will scale with traffic to your web application_
 
 ## Prerequisites
 
-### Local Development
+### System Requirements
 
+- Ubuntu 20.04+ (or Debian-based Linux)
 - Python 3.10+
-- GDAL 3.6+
-- Docker
-- AWS CLI
-- Terraform 1.5+
+- GDAL 3.6+ (system libraries)
+- AWS CLI v2
+- 4GB RAM minimum (8GB recommended for tile generation)
 
 ### AWS Resources
 
@@ -217,60 +217,55 @@ _Note: Costs will scale with traffic to your web application_
 
 ## Quick Start
 
-### 1. Clone and Setup
+### 1. Clone and Setup Environment
 
 ```bash
 # Navigate to project directory
 cd /path/to/weather-pipeline
 
-# Install Python dependencies
-pip install -r docker/requirements.txt
+# Run the setup script (installs GDAL, eccodes, creates venv)
+./scripts/setup/setup_venv.sh
 
-# Configure AWS credentials
-aws configure
+# Copy and configure environment
+cp .env.example .env
+nano .env  # Set your S3_BUCKET and AWS_PROFILE
 ```
 
-### 2. Deploy Infrastructure
+### 2. Configure AWS Credentials
 
 ```bash
-cd terraform/
-terraform init
-terraform plan
-terraform apply
+# Option A: Use AWS CLI
+aws configure --profile your-profile
+
+# Option B: Use environment variables
+export AWS_ACCESS_KEY_ID=your-key
+export AWS_SECRET_ACCESS_KEY=your-secret
 ```
 
-### 3. Build Docker Image
+### 3. Test Pipeline (Dry Run)
 
 ```bash
-cd docker/
-docker build -t weather-processor:latest .
+# Activate virtual environment
+source venv/bin/activate
+
+# Run dry-run test
+./scripts/pipeline.sh --dry-run
 ```
 
-### 4. Test Pipeline Manually
+### 4. Run Pipeline
 
 ```bash
-# Download HRRR data
-python3 scripts/download_hrrr.py --test
+# Full pipeline run
+./scripts/pipeline.sh
 
-# Process with GDAL
-docker run --rm \
-  -v /tmp:/tmp \
-  -v ~/.aws:/root/.aws \
-  weather-processor:latest \
-  python3 /app/process_grib.py --test
-
-# Upload to S3
-python3 scripts/upload_to_s3.py --test
+# Run for specific model cycle
+./scripts/pipeline.sh --date 2024-01-15 --cycle 12
 ```
 
-### 5. Deploy Automated Pipeline
+### 5. Deploy Automated Pipeline (Cron)
 
 ```bash
-# Copy scripts to EC2
-scp -r scripts/ ubuntu@your-ec2-ip:/home/ubuntu/weather-pipeline/
-
 # SSH to EC2 and set up cron
-ssh ubuntu@your-ec2-ip
 crontab -e
 
 # Add this line:
