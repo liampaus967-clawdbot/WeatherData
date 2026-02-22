@@ -711,7 +711,7 @@ cleanup_old_tiles() {
 # Global variables for step timing
 declare -A STEP_START_TIMES
 declare -A STEP_DURATIONS
-METRICS_NAMESPACE="WeatherPipeline"
+METRICS_NAMESPACE="Driftwise/WeatherPipeline"
 PIPELINE_ERRORS=0
 FILES_DOWNLOADED=0
 FILES_PROCESSED=0
