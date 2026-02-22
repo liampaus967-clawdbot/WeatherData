@@ -461,7 +461,9 @@ Examples:
             size_mb = output_path.stat().st_size / 1024 / 1024
             logger.info(f"  ✓ {input_name} → {output_path.name} ({size_mb:.2f} MB)")
 
-    return 0 if success_count == len(cog_files) else 1
+    # Return success if at least some files were colored successfully
+    # (Unknown variables without color ramps are expected to fail)
+    return 0 if success_count > 0 else 1
 
 
 if __name__ == '__main__':
