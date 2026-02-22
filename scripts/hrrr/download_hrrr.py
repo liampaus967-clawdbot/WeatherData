@@ -26,7 +26,7 @@ import xarray as xr
 
 
 # Configuration
-DEFAULT_S3_BUCKET = os.environ.get("S3_BUCKET", "driftwise-dev-assets")
+DEFAULT_S3_BUCKET = os.environ.get("S3_BUCKET", "driftwise-weather-data")
 DEFAULT_MODEL = "hrrr"
 DEFAULT_PRODUCT = "sfc"  # Surface level product
 TEMP_DIR = Path("/tmp/weather-data")
