@@ -18,6 +18,7 @@ S3_BUCKET="${S3_BUCKET:-driftwise-weather-data}"
 ENABLE_S3=false
 FORECAST_HOURS="0-12"
 VERBOSE=""
+SKIP_CLEANUP=false
 
 # Parse args
 while [[ $# -gt 0 ]]; do
@@ -27,7 +28,8 @@ while [[ $# -gt 0 ]]; do
         --s3-bucket) S3_BUCKET="$2"; ENABLE_S3=true; shift 2 ;;
         --work-dir) WORK_DIR="$2"; shift 2 ;;
         --verbose|-v) VERBOSE="-v"; shift ;;
-        --help) echo "Usage: $0 [--forecast-hours 0-12] [--enable-s3] [--s3-bucket NAME] [--verbose]"; exit 0 ;;
+        --skip-cleanup) SKIP_CLEANUP=true; shift ;;
+        --help) echo "Usage: $0 [--forecast-hours 0-12] [--enable-s3] [--s3-bucket NAME] [--skip-cleanup] [--verbose]"; exit 0 ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
@@ -156,10 +158,69 @@ EOF
     fi
 fi
 
+# Step 4: Clean up old data (unless --skip-cleanup is set)
+if [[ "$SKIP_CLEANUP" == "false" ]]; then
+    # Clean up old wind tiles from S3 (keep only current cycle)
+    if [[ "$ENABLE_S3" == "true" ]] && [[ "$WIND_COUNT" -gt 0 ]] && [[ -n "$DATE_STR" ]] && [[ -n "$CYCLE" ]]; then
+        echo ""
+        echo "==> Step 4a: Cleaning up old wind tiles from S3..."
+        
+        CURRENT_PREFIX="wind-tiles/${FORMATTED_DATE}/${CYCLE}Z"
+        
+        # List all wind-tiles prefixes and delete those that aren't the current one
+        OLD_PREFIXES=$(aws s3 ls "s3://$S3_BUCKET/wind-tiles/" | awk '{print $2}' | tr -d '/')
+        
+        for DATE_PREFIX in $OLD_PREFIXES; do
+            # List cycles within each date
+            CYCLES=$(aws s3 ls "s3://$S3_BUCKET/wind-tiles/${DATE_PREFIX}/" 2>/dev/null | awk '{print $2}' | tr -d '/')
+            for CYCLE_PREFIX in $CYCLES; do
+                FULL_PREFIX="wind-tiles/${DATE_PREFIX}/${CYCLE_PREFIX}"
+                if [[ "$FULL_PREFIX" != "$CURRENT_PREFIX" ]]; then
+                    echo "Deleting old tiles: s3://$S3_BUCKET/$FULL_PREFIX/"
+                    aws s3 rm "s3://$S3_BUCKET/$FULL_PREFIX/" --recursive --quiet
+                fi
+            done
+            
+            # Clean up empty date folders
+            REMAINING=$(aws s3 ls "s3://$S3_BUCKET/wind-tiles/${DATE_PREFIX}/" 2>/dev/null | wc -l)
+            if [[ "$REMAINING" -eq 0 ]]; then
+                echo "Removing empty date folder: $DATE_PREFIX"
+            fi
+        done
+        
+        echo "Wind tiles cleanup complete - kept only: $CURRENT_PREFIX"
+        
+        # Clean up raw GRIB2 files from S3 (not needed after tile generation)
+        echo ""
+        echo "==> Step 4b: Cleaning up raw GRIB2 files from S3..."
+        GRIB_COUNT_S3=$(aws s3 ls "s3://$S3_BUCKET/raw-grib2/" --recursive 2>/dev/null | wc -l)
+        if [[ "$GRIB_COUNT_S3" -gt 0 ]]; then
+            echo "Removing $GRIB_COUNT_S3 GRIB2 files from S3..."
+            aws s3 rm "s3://$S3_BUCKET/raw-grib2/" --recursive --quiet
+            echo "S3 GRIB2 cleanup complete"
+        else
+            echo "No GRIB2 files to clean up in S3"
+        fi
+    fi
+
+    # Clean up local GRIB/NetCDF files (they're large and no longer needed)
+    echo ""
+    echo "==> Step 4c: Cleaning up local data files..."
+    GRIB_SIZE=$(du -sh "$DOWNLOAD_DIR" 2>/dev/null | cut -f1 || echo "0")
+    echo "Removing downloaded files ($GRIB_SIZE)..."
+    rm -rf "$DOWNLOAD_DIR"/*
+    echo "Local cleanup complete"
+else
+    echo ""
+    echo "==> Skipping cleanup (--skip-cleanup flag set)"
+fi
+
 echo ""
 echo "=============================================="
 echo "Complete! Generated $WIND_COUNT wind tiles"
 echo "Output: $WIND_DIR"
 [[ "$ENABLE_S3" == "true" ]] && echo "Uploaded to: s3://$S3_BUCKET/wind-tiles/"
 [[ "$ENABLE_S3" == "true" ]] && echo "Metadata: s3://$S3_BUCKET/metadata/latest_wind.json"
+[[ "$ENABLE_S3" == "true" ]] && [[ "$SKIP_CLEANUP" == "false" ]] && echo "Old tiles & GRIB files cleaned up"
+[[ "$SKIP_CLEANUP" == "true" ]] && echo "Cleanup skipped (--skip-cleanup)"
 echo "=============================================="
