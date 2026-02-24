@@ -28,6 +28,7 @@ WORK_DIR="${WORK_DIR:-/tmp/weather-pipeline}"
 S3_BUCKET="${S3_BUCKET:-}"
 ENABLE_S3_UPLOAD="${ENABLE_S3_UPLOAD:-false}"
 ENABLE_TILES="${ENABLE_TILES:-true}"
+ENABLE_WIND_TILES="${ENABLE_WIND_TILES:-false}"
 DRY_RUN="${DRY_RUN:-false}"
 PRIORITY="${PRIORITY:-1}"
 ZOOM_LEVELS="${ZOOM_LEVELS:-0-6}"
@@ -389,6 +390,66 @@ generate_tiles() {
     fi
 }
 
+process_wind_tiles() {
+    if [[ "$ENABLE_WIND_TILES" != "true" ]]; then
+        log_info "==> Step 4b: Wind tile generation disabled (skipped)"
+        return 0
+    fi
+
+    log_info "==> Step 4b: Generating wind tiles from GRIB2..."
+    start_step_timer "WindTiles"
+
+    local wind_dir="$WORK_DIR/wind-tiles"
+    mkdir -p "$wind_dir"
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[DRY-RUN] Would extract wind tiles from GRIB2 files"
+        local model_date_compact="${MODEL_DATE//-/}"
+        for fxx in 00 01 02 03; do
+            touch "$wind_dir/wind_${model_date_compact}_t${MODEL_CYCLE}z_f${fxx}.png"
+        done
+        WIND_TILES_GENERATED=4
+        end_step_timer "WindTiles"
+        return 0
+    fi
+
+    local cmd="docker run --rm \
+        --user $(id -u):$(id -g) \
+        -e HOME=/tmp \
+        -e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-} \
+        -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-} \
+        -e AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1} \
+        -v $DOWNLOAD_DIR:/data/input \
+        -v $wind_dir:/data/output \
+        -v $PROJECT_ROOT:/app \
+        weather-processor:latest \
+        python3 /app/scripts/wind/extract_wind_from_grib.py \
+        --input /data/input \
+        --output /data/output \
+        --verbose"
+
+    # Add S3 bucket if enabled
+    if [[ "$ENABLE_S3_UPLOAD" == "true" ]] && [[ -n "$S3_BUCKET" ]]; then
+        cmd="$cmd --s3-bucket $S3_BUCKET"
+    fi
+
+    log_info "Executing: $cmd"
+
+    if $cmd >> "$LOG_FILE" 2>&1; then
+        log_success "Wind tile generation completed"
+        local wind_count=$(find "$wind_dir" -name "*.png" | wc -l | tr -d ' ')
+        WIND_TILES_GENERATED=$wind_count
+        log_info "Generated $wind_count wind tile images"
+        export WIND_DIR="$wind_dir"
+        end_step_timer "WindTiles"
+        return 0
+    else
+        record_pipeline_error "WindTiles" "Wind tile generation failed"
+        end_step_timer "WindTiles"
+        return 1
+    fi
+}
+
 upload_to_s3() {
     if [[ "$ENABLE_S3_UPLOAD" != "true" ]]; then
         log_info "==> Step 5: S3 upload disabled (skipped)"
@@ -716,6 +777,7 @@ PIPELINE_ERRORS=0
 FILES_DOWNLOADED=0
 FILES_PROCESSED=0
 TILES_GENERATED=0
+WIND_TILES_GENERATED=0
 
 start_step_timer() {
     local step_name="$1"
@@ -853,6 +915,7 @@ OPTIONS:
   --enable-s3         Enable S3 upload
   --s3-bucket NAME    S3 bucket for uploads
   --disable-tiles     Disable tile generation
+  --enable-wind       Enable wind tile generation (UV encoded PNGs)
   --work-dir PATH     Working directory (default: /tmp/weather-pipeline)
   --log-dir PATH      Log directory (default: /var/log/weather-pipeline)
   --help              Show this help message
@@ -924,6 +987,10 @@ main() {
                 ENABLE_TILES=false
                 shift
                 ;;
+            --enable-wind)
+                ENABLE_WIND_TILES=true
+                shift
+                ;;
             --work-dir)
                 WORK_DIR="$2"
                 shift 2
@@ -958,6 +1025,7 @@ main() {
     log_info "Priority: $PRIORITY"
     log_info "Forecast Hours: $FORECAST_HOURS"
     log_info "Tiles Enabled: $ENABLE_TILES"
+    log_info "Wind Tiles: $ENABLE_WIND_TILES"
     log_info "Zoom Levels: $ZOOM_LEVELS"
     log_info "S3 Upload: $ENABLE_S3_UPLOAD"
     if [[ -n "$S3_BUCKET" ]]; then
@@ -978,6 +1046,7 @@ main() {
     process_grib2 || exit 1
     apply_colormaps || exit 1
     generate_tiles || exit 1
+    process_wind_tiles || exit 1
     upload_to_s3 || exit 1
     generate_metadata || exit 1
 
