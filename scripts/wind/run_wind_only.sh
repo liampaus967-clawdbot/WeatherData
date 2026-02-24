@@ -60,7 +60,7 @@ echo "S3 Upload: $ENABLE_S3"
 echo "Work Dir: $WORK_DIR"
 echo "=============================================="
 
-# Step 1: Download HRRR wind data
+# Step 1: Download HRRR wind data (full GRIB, same as main pipeline)
 echo ""
 echo "==> Step 1: Downloading HRRR GRIB2 data..."
 docker run --rm \
@@ -74,7 +74,7 @@ docker run --rm \
     --date "$DATE" \
     --cycle="$CYCLE" \
     --fxx "$FORECAST_HOURS" \
-    --variables "UGRD:10 m,VGRD:10 m" \
+    --variables all \
     --output /data/output \
     --keep-local
 
@@ -98,12 +98,20 @@ if [[ "$ENABLE_S3" == "true" ]]; then
     S3_ARG="--s3-bucket $S3_BUCKET"
 fi
 
+# Mount AWS credentials directory if it exists (for S3 uploads)
+AWS_MOUNT=""
+if [[ -d "$HOME/.aws" ]]; then
+    AWS_MOUNT="-v $HOME/.aws:/root/.aws:ro"
+fi
+
 docker run --rm \
-    --user $(id -u):$(id -g) \
-    -e HOME=/tmp \
+    --user 0:0 \
+    -e HOME=/root \
     -e AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-}" \
     -e AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-}" \
     -e AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}" \
+    -e AWS_PROFILE="${AWS_PROFILE:-default}" \
+    $AWS_MOUNT \
     -v "$DOWNLOAD_DIR:/data/input" \
     -v "$WIND_DIR:/data/output" \
     -v "$PROJECT_ROOT:/app" \
