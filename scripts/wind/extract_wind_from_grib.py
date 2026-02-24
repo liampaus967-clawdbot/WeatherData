@@ -179,10 +179,11 @@ def create_wind_image(u_data: np.ndarray, v_data: np.ndarray) -> Image.Image:
 
 
 def parse_grib_filename(filename: str) -> Optional[dict]:
-    """Extract date, cycle, fxx from GRIB filename like hrrr.20260224.t14z.wrfsfcf00.grib2"""
+    """Extract date, cycle, fxx from GRIB/NetCDF filename like hrrr.20260224.t14z.wrfsfcf00.grib2 or hrrr.20260224.t15z.f00.nc"""
     patterns = [
         r'hrrr\.(\d{8})\.t(\d{2})z\.wrfsfcf(\d{2})\.grib2',
         r'hrrr\.(\d{8})\.t(\d{2})z\.f(\d{2})\.grib2',
+        r'hrrr\.(\d{8})\.t(\d{2})z\.f(\d{2})\.nc',  # NetCDF format
     ]
     for pattern in patterns:
         match = re.match(pattern, filename)
@@ -213,32 +214,96 @@ def upload_to_s3(local_path: Path, s3_bucket: str, s3_key: str, logger: logging.
         return False
 
 
+def extract_wind_from_netcdf(nc_path: Path, logger: logging.Logger) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[dict]]:
+    """
+    Extract U and V wind components from a NetCDF file.
+    
+    Returns: (u_data, v_data, metadata) or (None, None, None) on failure
+    """
+    logger.info(f"Extracting wind from NetCDF: {nc_path.name}")
+    
+    try:
+        ds = xr.open_dataset(nc_path)
+        
+        u_data = None
+        v_data = None
+        
+        # Try common variable names for U/V wind
+        u_names = ['u10', 'u', 'UGRD_10maboveground', 'ugrd']
+        v_names = ['v10', 'v', 'VGRD_10maboveground', 'vgrd']
+        
+        for name in u_names:
+            if name in ds:
+                u_data = ds[name].values.squeeze()
+                break
+        
+        for name in v_names:
+            if name in ds:
+                v_data = ds[name].values.squeeze()
+                break
+        
+        if u_data is None or v_data is None:
+            logger.warning(f"Could not find U/V wind in {nc_path.name}. Variables: {list(ds.data_vars)}")
+            ds.close()
+            return None, None, None
+        
+        metadata = {
+            'source_file': nc_path.name,
+            'shape': list(u_data.shape),
+            'wind_encoding': {
+                'min': WIND_MIN,
+                'max': WIND_MAX,
+                'unit': 'm/s',
+                'r_channel': 'U component (east-west)',
+                'g_channel': 'V component (north-south)',
+                'b_channel': 'magnitude',
+                'encoding': '128 = 0 m/s, 0 = -50 m/s, 255 = +50 m/s'
+            }
+        }
+        
+        ds.close()
+        logger.info(f"Extracted wind: shape={u_data.shape}, U range=[{np.nanmin(u_data):.1f}, {np.nanmax(u_data):.1f}], V range=[{np.nanmin(v_data):.1f}, {np.nanmax(v_data):.1f}]")
+        
+        return u_data, v_data, metadata
+        
+    except Exception as e:
+        logger.error(f"Failed to read NetCDF: {e}")
+        return None, None, None
+
+
 def process_grib_files(
     input_dir: Path,
     output_dir: Path,
     s3_bucket: Optional[str],
     logger: logging.Logger
 ) -> int:
-    """Process all GRIB2 files in input directory."""
+    """Process all GRIB2/NetCDF files in input directory."""
     
     grib_files = sorted(input_dir.glob("*.grib2"))
-    if not grib_files:
-        logger.warning(f"No GRIB2 files found in {input_dir}")
+    nc_files = sorted(input_dir.glob("*.nc"))
+    all_files = grib_files + nc_files
+    
+    if not all_files:
+        logger.warning(f"No GRIB2 or NetCDF files found in {input_dir}")
         return 0
     
-    logger.info(f"Found {len(grib_files)} GRIB2 files to process")
+    logger.info(f"Found {len(all_files)} files to process ({len(grib_files)} GRIB2, {len(nc_files)} NetCDF)")
     
     processed = 0
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    for grib_path in grib_files:
-        file_info = parse_grib_filename(grib_path.name)
+    for file_path in all_files:
+        file_info = parse_grib_filename(file_path.name)
         if not file_info:
-            logger.warning(f"Could not parse filename: {grib_path.name}")
+            logger.warning(f"Could not parse filename: {file_path.name}")
             continue
         
-        # Extract wind data
-        u_data, v_data, metadata = extract_wind_from_grib(grib_path, logger)
+        # Extract wind data based on file type
+        if file_path.suffix == '.nc':
+            u_data, v_data, metadata = extract_wind_from_netcdf(file_path, logger)
+        else:
+            u_data, v_data, metadata = extract_wind_from_grib(file_path, logger)
+        
         if u_data is None:
             continue
         
