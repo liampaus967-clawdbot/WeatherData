@@ -392,11 +392,11 @@ generate_tiles() {
 
 process_wind_tiles() {
     if [[ "$ENABLE_WIND_TILES" != "true" ]]; then
-        log_info "==> Step 4b: Wind tile generation disabled (skipped)"
+        log_info "==> Step 1b: Wind tile generation disabled (skipped)"
         return 0
     fi
 
-    log_info "==> Step 4b: Generating wind tiles from GRIB2..."
+    log_info "==> Step 1b: Generating wind tiles from GRIB2..."
     start_step_timer "WindTiles"
 
     local wind_dir="$WORK_DIR/wind-tiles"
@@ -1043,10 +1043,10 @@ main() {
 
     # Execute pipeline steps
     download_data || exit 1
+    process_wind_tiles || exit 1  # Run BEFORE processing deletes GRIBs
     process_grib2 || exit 1
     apply_colormaps || exit 1
     generate_tiles || exit 1
-    process_wind_tiles || exit 1
     upload_to_s3 || exit 1
     generate_metadata || exit 1
 
