@@ -95,9 +95,71 @@ python scripts/wind/extract_wind_from_grib.py \
 
 # Results
 WIND_COUNT=$(find "$WIND_DIR" -name "*.png" 2>/dev/null | wc -l)
+
+# Step 3: Generate and upload latest_wind.json metadata
+if [[ "$ENABLE_S3" == "true" ]] && [[ "$WIND_COUNT" -gt 0 ]]; then
+    echo ""
+    echo "==> Step 3: Uploading latest_wind.json metadata..."
+    
+    # Get the most recent wind tile info
+    LATEST_PNG=$(ls -t "$WIND_DIR"/*.png 2>/dev/null | head -1)
+    if [[ -n "$LATEST_PNG" ]]; then
+        LATEST_NAME=$(basename "$LATEST_PNG")
+        # Extract date, cycle, forecast from filename: wind_20260224_t17z_f00.png
+        DATE_STR=$(echo "$LATEST_NAME" | sed -n 's/wind_\([0-9]*\)_t.*/\1/p')
+        CYCLE=$(echo "$LATEST_NAME" | sed -n 's/.*_t\([0-9]*\)z_.*/\1/p')
+        
+        # Build list of available forecast hours
+        FORECAST_LIST=$(ls "$WIND_DIR"/*.png 2>/dev/null | xargs -I{} basename {} | sed -n 's/.*_f\([0-9]*\)\.png/\1/p' | sort -n | tr '\n' ',' | sed 's/,$//')
+        
+        # Format date for display
+        FORMATTED_DATE="${DATE_STR:0:4}-${DATE_STR:4:2}-${DATE_STR:6:2}"
+        
+        # Generate latest_wind.json
+        METADATA_FILE="$WIND_DIR/latest_wind.json"
+        cat > "$METADATA_FILE" << EOF
+{
+  "model": "HRRR",
+  "model_run": {
+    "date": "$FORMATTED_DATE",
+    "cycle": "${CYCLE}Z",
+    "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  },
+  "forecast_hours": [$FORECAST_LIST],
+  "tiles": {
+    "base_url": "https://${S3_BUCKET}.s3.amazonaws.com/wind-tiles/${FORMATTED_DATE}/${CYCLE}Z",
+    "filename_pattern": "wind_${DATE_STR}_t${CYCLE}z_f{forecast}.png",
+    "width": 1799,
+    "height": 1059
+  },
+  "encoding": {
+    "r_channel": "U component (m/s)",
+    "g_channel": "V component (m/s)",
+    "b_channel": "magnitude",
+    "min_value": -50,
+    "max_value": 50,
+    "zero_value": 128
+  },
+  "bounds": {
+    "west": -134.1,
+    "east": -60.9,
+    "north": 49.0,
+    "south": 21.1
+  },
+  "generated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+EOF
+        
+        # Upload to S3
+        aws s3 cp "$METADATA_FILE" "s3://$S3_BUCKET/metadata/latest_wind.json" --content-type "application/json"
+        echo "Uploaded: s3://$S3_BUCKET/metadata/latest_wind.json"
+    fi
+fi
+
 echo ""
 echo "=============================================="
 echo "Complete! Generated $WIND_COUNT wind tiles"
 echo "Output: $WIND_DIR"
 [[ "$ENABLE_S3" == "true" ]] && echo "Uploaded to: s3://$S3_BUCKET/wind-tiles/"
+[[ "$ENABLE_S3" == "true" ]] && echo "Metadata: s3://$S3_BUCKET/metadata/latest_wind.json"
 echo "=============================================="
