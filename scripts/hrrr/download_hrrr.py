@@ -307,15 +307,31 @@ def download_hrrr_data(
             # Download specific variables
             logger.info(f"Downloading variables: {', '.join(variables)}")
 
-            # Download each variable
+            # Download each variable with timeout handling
             ds_list = []
+            import signal
+            
+            def timeout_handler(signum, frame):
+                raise TimeoutError("Download timed out after 120 seconds")
+            
             for var in variables:
-                logger.debug(f"  Downloading {var}...")
+                logger.info(f"  Downloading {var}...")
                 try:
+                    # Set 120 second timeout per variable
+                    signal.signal(signal.SIGALRM, timeout_handler)
+                    signal.alarm(120)
+                    
                     ds = H.xarray(var, remove_grib=False)
                     ds_list.append(ds)
+                    
+                    signal.alarm(0)  # Cancel alarm
+                    logger.info(f"  ✓ Downloaded {var}")
+                except TimeoutError as e:
+                    signal.alarm(0)
+                    logger.warning(f"  ✗ Timeout downloading {var}: {e}")
                 except Exception as e:
-                    logger.warning(f"  Failed to download {var}: {e}")
+                    signal.alarm(0)
+                    logger.warning(f"  ✗ Failed to download {var}: {e}")
 
             if not ds_list:
                 logger.error("No variables downloaded successfully")
