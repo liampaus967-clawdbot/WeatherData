@@ -78,12 +78,14 @@ docker run --rm \
     --output /data/output \
     --keep-local
 
-# Check files downloaded
+# Check files downloaded (can be .grib2 or .nc depending on download mode)
 GRIB_COUNT=$(find "$DOWNLOAD_DIR" -name "*.grib2" | wc -l)
-echo "Downloaded $GRIB_COUNT GRIB2 files"
+NC_COUNT=$(find "$DOWNLOAD_DIR" -name "*.nc" | wc -l)
+TOTAL_COUNT=$((GRIB_COUNT + NC_COUNT))
+echo "Downloaded $GRIB_COUNT GRIB2 files, $NC_COUNT NetCDF files"
 
-if [[ "$GRIB_COUNT" -eq 0 ]]; then
-    echo "ERROR: No GRIB2 files downloaded!"
+if [[ "$TOTAL_COUNT" -eq 0 ]]; then
+    echo "ERROR: No data files downloaded!"
     exit 1
 fi
 
