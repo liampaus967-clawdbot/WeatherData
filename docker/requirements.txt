@@ -19,6 +19,9 @@ numpy>=1.24.0,<2.0.0  # Pin to NumPy 1.x for GDAL compatibility
 # HTTP utilities (for Herbie)
 requests>=2.31.0
 
+# Image processing (for wind tiles)
+pillow>=10.0.0
+
 # Additional dependencies for xarray and rioxarray
 netCDF4>=1.6.0
 h5netcdf>=1.2.0
