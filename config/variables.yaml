@@ -98,7 +98,7 @@ variables:
     typical_range: [0, 100]
     color_ramp: "wind_speed"
     priority: 2
-    enabled: false
+    enabled: true
 
   # ==========================================
   # Moisture Variables (Priority 2)
@@ -130,7 +130,7 @@ variables:
     typical_range: [0, 10]
     color_ramp: "precipitation"
     priority: 2
-    enabled: false
+    enabled: true
 
   precipitation_rate:
     grib_search: "PRATE:surface"
@@ -158,7 +158,7 @@ variables:
     typical_range: [0, 100]
     color_ramp: "cloud_cover"
     priority: 1
-    enabled: false
+    enabled: true
 
   cloud_cover_low:
     grib_search: "LCDC:low cloud layer"
@@ -262,7 +262,7 @@ variables:
     typical_range: [0, 20]
     color_ramp: "visibility"
     priority: 2
-    enabled: false
+    enabled: true
 
   snow_depth:
     grib_search: "SNOD:surface"
@@ -350,7 +350,7 @@ variables:
     typical_range: [0, 48]
     color_ramp: "snow_accumulation"
     priority: 1
-    enabled: false
+    enabled: true
 
   # ==========================================
   # Air Quality Variables (Priority 2)
@@ -366,7 +366,7 @@ variables:
     typical_range: [0, 500]
     color_ramp: "smoke"
     priority: 1
-    enabled: false
+    enabled: true
 
 # ==========================================
 # Color Ramp Definitions
