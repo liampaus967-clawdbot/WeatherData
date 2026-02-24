@@ -94,31 +94,61 @@ def extract_wind_from_grib(grib_path: Path, logger: logging.Logger) -> Tuple[Opt
     
     # Fallback to cfgrib/xarray
     if (u_data is None or v_data is None) and HAS_CFGRIB:
-        try:
-            # Open with cfgrib, filter for 10m wind
-            ds = xr.open_dataset(
-                grib_path,
-                engine='cfgrib',
-                filter_by_keys={'typeOfLevel': 'heightAboveGround', 'level': 10}
-            )
-            
-            if 'u10' in ds:
-                u_data = ds['u10'].values.squeeze()
-            elif 'u' in ds:
-                u_data = ds['u'].values.squeeze()
+        # Try multiple filter strategies
+        filter_attempts = [
+            {'typeOfLevel': 'heightAboveGround', 'level': 10},
+            {'shortName': ['10u', '10v']},
+            {'cfVarName': ['u10', 'v10']},
+            {},  # No filter - load all and search
+        ]
+        
+        for filter_keys in filter_attempts:
+            try:
+                logger.debug(f"Trying cfgrib with filter: {filter_keys}")
+                if filter_keys:
+                    ds = xr.open_dataset(
+                        grib_path,
+                        engine='cfgrib',
+                        filter_by_keys=filter_keys
+                    )
+                else:
+                    # No filter - use backend_kwargs to handle multiple messages
+                    ds = xr.open_dataset(
+                        grib_path,
+                        engine='cfgrib',
+                        backend_kwargs={'indexpath': ''}
+                    )
                 
-            if 'v10' in ds:
-                v_data = ds['v10'].values.squeeze()
-            elif 'v' in ds:
-                v_data = ds['v'].values.squeeze()
-            
-            if 'latitude' in ds:
-                lats = ds['latitude'].values
-                lons = ds['longitude'].values
-            
-            ds.close()
-        except Exception as e:
-            logger.error(f"cfgrib also failed: {e}")
+                # Look for U component
+                for var_name in ['u10', 'u', '10u', 'UGRD_10maboveground']:
+                    if var_name in ds:
+                        u_data = ds[var_name].values.squeeze()
+                        logger.debug(f"Found U in variable: {var_name}")
+                        break
+                
+                # Look for V component
+                for var_name in ['v10', 'v', '10v', 'VGRD_10maboveground']:
+                    if var_name in ds:
+                        v_data = ds[var_name].values.squeeze()
+                        logger.debug(f"Found V in variable: {var_name}")
+                        break
+                
+                if 'latitude' in ds:
+                    lats = ds['latitude'].values
+                    lons = ds['longitude'].values
+                
+                ds.close()
+                
+                if u_data is not None and v_data is not None:
+                    logger.debug(f"Successfully extracted with filter: {filter_keys}")
+                    break
+                    
+            except Exception as e:
+                logger.debug(f"Filter {filter_keys} failed: {e}")
+                continue
+        
+        if u_data is None or v_data is None:
+            logger.error(f"All cfgrib filter attempts failed for {grib_path.name}")
             return None, None, None
     
     if u_data is None or v_data is None:
@@ -299,12 +329,19 @@ def process_grib_files(
             continue
         
         # Extract wind data based on file type
-        if file_path.suffix == '.nc':
-            u_data, v_data, metadata = extract_wind_from_netcdf(file_path, logger)
-        else:
-            u_data, v_data, metadata = extract_wind_from_grib(file_path, logger)
-        
-        if u_data is None:
+        try:
+            if file_path.suffix == '.nc':
+                u_data, v_data, metadata = extract_wind_from_netcdf(file_path, logger)
+            else:
+                u_data, v_data, metadata = extract_wind_from_grib(file_path, logger)
+            
+            if u_data is None:
+                logger.warning(f"Skipping {file_path.name} - no wind data extracted")
+                continue
+        except Exception as e:
+            logger.error(f"Exception processing {file_path.name}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             continue
         
         # Create wind image
