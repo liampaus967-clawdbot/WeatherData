@@ -44,6 +44,42 @@ WIND_MIN = -50.0
 WIND_MAX = 50.0
 TILE_SIZE = 256
 
+# HRRR Lambert Conformal projection parameters
+HRRR_CENTER_LON = -97.5
+HRRR_TRUE_LAT = 38.5
+
+
+def rotate_wind_to_earth(u_grid: np.ndarray, v_grid: np.ndarray, lons: np.ndarray,
+                         center_lon: float = HRRR_CENTER_LON) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Rotate grid-relative U/V winds to earth-relative coordinates.
+    
+    HRRR uses Lambert Conformal with center_lon = -97.5
+    The rotation angle depends on longitude relative to the central meridian.
+    
+    Args:
+        u_grid: Grid-relative U component
+        v_grid: Grid-relative V component  
+        lons: Longitude array (same shape as u_grid)
+        center_lon: Central meridian of the projection (-97.5 for HRRR)
+    
+    Returns:
+        u_earth, v_earth: Earth-relative wind components
+    """
+    # Rotation angle (in radians)
+    # For Lambert Conformal, rotation = (lon - center_lon) * sin(true_lat)
+    true_lat_rad = np.radians(HRRR_TRUE_LAT)
+    rotation_angle = np.radians(lons - center_lon) * np.sin(true_lat_rad)
+    
+    # Rotate from grid to earth coordinates
+    cos_rot = np.cos(rotation_angle)
+    sin_rot = np.sin(rotation_angle)
+    
+    u_earth = u_grid * cos_rot - v_grid * sin_rot
+    v_earth = u_grid * sin_rot + v_grid * cos_rot
+    
+    return u_earth, v_earth
+
 
 def setup_logging(verbose: bool = False) -> logging.Logger:
     log_level = logging.DEBUG if verbose else logging.INFO
@@ -159,6 +195,12 @@ def extract_wind_from_grib(grib_path: Path, logger: logging.Logger) -> Tuple[Opt
     if lons is not None and lons.max() > 180:
         lons = np.where(lons > 180, lons - 360, lons)
     
+    # Rotate grid-relative winds to earth-relative coordinates
+    # HRRR uses Lambert Conformal projection - U/V are grid-aligned, not earth-aligned
+    if lons is not None:
+        logger.info("Rotating wind from grid-relative to earth-relative coordinates")
+        u_data, v_data = rotate_wind_to_earth(u_data, v_data, lons)
+    
     metadata = {
         'source_file': grib_path.name,
         'shape': list(u_data.shape),
@@ -257,6 +299,7 @@ def extract_wind_from_netcdf(nc_path: Path, logger: logging.Logger) -> Tuple[Opt
         
         u_data = None
         v_data = None
+        lons = None
         
         # Try common variable names for U/V wind
         u_names = ['u10', 'u', 'UGRD_10maboveground', 'ugrd']
@@ -272,10 +315,29 @@ def extract_wind_from_netcdf(nc_path: Path, logger: logging.Logger) -> Tuple[Opt
                 v_data = ds[name].values.squeeze()
                 break
         
+        # Try to get longitude for wind rotation
+        lon_names = ['longitude', 'lon', 'x']
+        for name in lon_names:
+            if name in ds.coords or name in ds:
+                lons = ds[name].values
+                # If 1D, broadcast to 2D grid
+                if lons.ndim == 1 and u_data is not None:
+                    lons = np.broadcast_to(lons[np.newaxis, :], u_data.shape)
+                break
+        
         if u_data is None or v_data is None:
             logger.warning(f"Could not find U/V wind in {nc_path.name}. Variables: {list(ds.data_vars)}")
             ds.close()
             return None, None, None
+        
+        # Convert longitude from 0-360 to -180-180 if needed
+        if lons is not None and np.nanmax(lons) > 180:
+            lons = np.where(lons > 180, lons - 360, lons)
+        
+        # Rotate grid-relative winds to earth-relative coordinates
+        if lons is not None:
+            logger.info("Rotating wind from grid-relative to earth-relative coordinates")
+            u_data, v_data = rotate_wind_to_earth(u_data, v_data, lons)
         
         metadata = {
             'source_file': nc_path.name,
