@@ -309,12 +309,18 @@ def process_herbie(output_dir: Path, s3_bucket: Optional[str],
         # Create image
         wind_img = create_wind_image(u_reproj, v_reproj, valid_mask)
         
-        # Output filenames
+        # Output filenames (using cycle-based format for app compatibility)
         date_str = target_time.strftime('%Y%m%d')
-        hour_str = target_time.strftime('%H')
+        # Extract cycle hour from metadata
+        cycle_str = metadata.get('cycle', '')
+        if cycle_str:
+            cycle_hour = cycle_str.split()[1].replace(':00', '')
+        else:
+            cycle_hour = target_time.strftime('%H')
+        fxx = metadata.get('forecast_hour', 0)
         
-        png_name = f"wind_{date_str}_v{hour_str}z.png"
-        json_name = f"wind_{date_str}_v{hour_str}z.json"
+        png_name = f"wind_{date_str}_t{cycle_hour}z_f{fxx:02d}.png"
+        json_name = f"wind_{date_str}_t{cycle_hour}z_f{fxx:02d}.json"
         
         png_path = output_dir / png_name
         json_path = output_dir / json_name
@@ -326,9 +332,11 @@ def process_herbie(output_dir: Path, s3_bucket: Optional[str],
         
         logger.info(f"Created: {png_name} ({wind_img.size[0]}x{wind_img.size[1]})")
         
-        # Upload to S3
+        # Upload to S3 using cycle-based folder structure
         if s3_bucket:
-            s3_prefix = f"wind-tiles/{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+            # Get the cycle hour from metadata
+            cycle_hour = metadata.get('cycle', '').split()[1].replace(':00', '') if metadata.get('cycle') else target_time.strftime('%H')
+            s3_prefix = f"wind-tiles/{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}/{cycle_hour}Z"
             upload_to_s3(png_path, s3_bucket, f"{s3_prefix}/{png_name}", logger)
             upload_to_s3(json_path, s3_bucket, f"{s3_prefix}/{json_name}", logger)
         

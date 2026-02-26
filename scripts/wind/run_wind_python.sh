@@ -92,28 +92,32 @@ if [[ "$ENABLE_S3" == "true" ]] && [[ "$WIND_COUNT" -gt 0 ]]; then
     echo ""
     echo "==> Uploading latest_wind.json metadata..."
     
-    # Get info from latest tile
+    # Get info from latest tile (format: wind_20260226_t17z_f00.png)
     LATEST_PNG=$(ls -t "$WIND_DIR"/*.png 2>/dev/null | head -1)
     if [[ -n "$LATEST_PNG" ]]; then
         LATEST_NAME=$(basename "$LATEST_PNG")
-        # New format: wind_20260226_v17z.png
-        DATE_STR=$(echo "$LATEST_NAME" | sed -n 's/wind_\([0-9]*\)_v.*/\1/p')
+        DATE_STR=$(echo "$LATEST_NAME" | sed -n 's/wind_\([0-9]*\)_t.*/\1/p')
+        CYCLE=$(echo "$LATEST_NAME" | sed -n 's/.*_t\([0-9]*\)z_.*/\1/p')
         
-        # Format date
         FORMATTED_DATE="${DATE_STR:0:4}-${DATE_STR:4:2}-${DATE_STR:6:2}"
         
-        # Build list of valid hours
-        VALID_HOURS=$(ls "$WIND_DIR"/*.png 2>/dev/null | xargs -I{} basename {} | sed -n 's/.*_v\([0-9]*\)z\.png/"\1"/p' | sort | tr '\n' ',' | sed 's/,$//')
+        # Build list of forecast hours
+        FORECAST_LIST=$(ls "$WIND_DIR"/*.png 2>/dev/null | xargs -I{} basename {} | sed -n 's/.*_f\([0-9]*\)\.png/"\1"/p' | sort -t'"' -k2 -n | tr '\n' ',' | sed 's/,$//')
         
-        # Generate metadata
+        # Generate metadata in old format that app expects
         METADATA_FILE="$WIND_DIR/latest_wind.json"
         cat > "$METADATA_FILE" << EOF
 {
   "model": "HRRR",
-  "valid_times": [$VALID_HOURS],
+  "model_run": {
+    "date": "$FORMATTED_DATE",
+    "cycle": "${CYCLE}Z",
+    "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  },
+  "forecast_hours": [$FORECAST_LIST],
   "tiles": {
-    "base_url": "https://${S3_BUCKET}.s3.amazonaws.com/wind-tiles/${FORMATTED_DATE}",
-    "filename_pattern": "wind_${DATE_STR}_v{hour}z.png",
+    "base_url": "https://${S3_BUCKET}.s3.amazonaws.com/wind-tiles/${FORMATTED_DATE}/${CYCLE}Z",
+    "filename_pattern": "wind_${DATE_STR}_t${CYCLE}z_f{forecast}.png",
     "width": 1799,
     "height": 1059
   },
