@@ -227,6 +227,10 @@ def extract_wind_from_grib(grib_path: Path, logger: logging.Logger) -> Tuple[Opt
 
 def create_wind_image(u_data: np.ndarray, v_data: np.ndarray) -> Image.Image:
     """Create RGBA image: R=U, G=V, B=magnitude, A=255"""
+    # Flip arrays vertically - GRIB stores row 0 as SOUTH, but PNG row 0 should be NORTH
+    u_data = np.flipud(u_data)
+    v_data = np.flipud(v_data)
+    
     r_channel = encode_wind_component(u_data)
     g_channel = encode_wind_component(v_data)
     
