@@ -45,6 +45,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 WIND_DIR="$WORK_DIR/wind-tiles"
+# Clean output directory to avoid stale files affecting metadata
+rm -rf "$WIND_DIR"
 mkdir -p "$WIND_DIR"
 
 echo "=============================================="
