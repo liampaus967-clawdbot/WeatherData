@@ -34,6 +34,7 @@ PRIORITY="${PRIORITY:-1}"
 ZOOM_LEVELS="${ZOOM_LEVELS:-0-6}"
 TILE_PROCESSES="${TILE_PROCESSES:-4}"
 FORECAST_HOURS="${FORECAST_HOURS:-0-12}"  # Forecast hours to download (e.g., "0-6", "0-12", "0,3,6")
+WIND_FORECAST_HOURS="${WIND_FORECAST_HOURS:-0,1,2,3}"  # Wind tile forecast hours (comma-separated)
 
 # Timestamps
 START_TIME=$(date +%s)
@@ -396,35 +397,37 @@ process_wind_tiles() {
         return 0
     fi
 
-    log_info "==> Step 1b: Generating wind tiles from GRIB2..."
+    log_info "==> Step 1b: Generating wind tiles via Herbie..."
     start_step_timer "WindTiles"
 
     local wind_dir="$WORK_DIR/wind-tiles"
     mkdir -p "$wind_dir"
 
     if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would extract wind tiles from GRIB2 files"
+        log_info "[DRY-RUN] Would download and process wind tiles via Herbie"
         local model_date_compact="${MODEL_DATE//-/}"
         for fxx in 00 01 02 03; do
-            touch "$wind_dir/wind_${model_date_compact}_t${MODEL_CYCLE}z_f${fxx}.png"
+            touch "$wind_dir/wind_${model_date_compact}_v${fxx}z.png"
         done
         WIND_TILES_GENERATED=4
         end_step_timer "WindTiles"
         return 0
     fi
 
+    # Use --herbie mode for accurate valid-time matching and WGS84 reprojection
+    # Generate tiles for current hour and next 3 forecast hours
     local cmd="docker run --rm \
         --user $(id -u):$(id -g) \
         -e HOME=/tmp \
         -e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-} \
         -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-} \
         -e AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1} \
-        -v $DOWNLOAD_DIR:/data/input \
         -v $wind_dir:/data/output \
         -v $PROJECT_ROOT:/app \
         weather-processor:latest \
         python3 /app/scripts/wind/extract_wind_from_grib.py \
-        --input /data/input \
+        --herbie \
+        --forecast-hours ${WIND_FORECAST_HOURS:-0,1,2,3} \
         --output /data/output \
         --verbose"
 

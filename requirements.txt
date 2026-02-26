@@ -20,6 +20,7 @@ pyyaml>=6.0
 # Data processing utilities
 pandas>=2.0.0
 numpy>=1.24.0,<2.0.0  # Pin to NumPy 1.x for GDAL compatibility
+scipy>=1.11.0  # For KDTree reprojection in wind tiles
 
 # HTTP utilities (for Herbie)
 requests>=2.31.0
