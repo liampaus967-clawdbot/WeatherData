@@ -145,7 +145,7 @@ if [[ "$ENABLE_S3" == "true" ]] && [[ "$WIND_COUNT" -gt 0 ]]; then
   "bounds": {
     "west": -134.1,
     "east": -60.9,
-    "north": 49.0,
+    "north": 52.6,
     "south": 21.1
   },
   "generated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
