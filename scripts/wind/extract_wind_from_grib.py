@@ -317,10 +317,11 @@ def process_herbie(output_dir: Path, s3_bucket: Optional[str],
             cycle_hour = cycle_str.split()[1].replace(':00', '')
         else:
             cycle_hour = target_time.strftime('%H')
-        fxx = metadata.get('forecast_hour', 0)
+        # Use the user-requested offset (0=current, 1=+1h, etc), not internal HRRR fxx
+        output_fxx = fxx_offset
         
-        png_name = f"wind_{date_str}_t{cycle_hour}z_f{fxx:02d}.png"
-        json_name = f"wind_{date_str}_t{cycle_hour}z_f{fxx:02d}.json"
+        png_name = f"wind_{date_str}_t{cycle_hour}z_f{output_fxx:02d}.png"
+        json_name = f"wind_{date_str}_t{cycle_hour}z_f{output_fxx:02d}.json"
         
         png_path = output_dir / png_name
         json_path = output_dir / json_name
