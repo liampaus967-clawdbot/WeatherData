@@ -195,11 +195,8 @@ def extract_wind_from_grib(grib_path: Path, logger: logging.Logger) -> Tuple[Opt
     if lons is not None and lons.max() > 180:
         lons = np.where(lons > 180, lons - 360, lons)
     
-    # Rotate grid-relative winds to earth-relative coordinates
-    # HRRR uses Lambert Conformal projection - U/V are grid-aligned, not earth-aligned
-    if lons is not None:
-        logger.info("Rotating wind from grid-relative to earth-relative coordinates")
-        u_data, v_data = rotate_wind_to_earth(u_data, v_data, lons)
+    # Note: HRRR 10m winds (u10/v10) are already earth-relative, no rotation needed
+    # The grid rotation only applies to certain upper-air variables
     
     metadata = {
         'source_file': grib_path.name,
@@ -229,8 +226,13 @@ def extract_wind_from_grib(grib_path: Path, logger: logging.Logger) -> Tuple[Opt
 
 
 def create_wind_image(u_data: np.ndarray, v_data: np.ndarray) -> Image.Image:
-    """Create RGBA image: R=U, G=V, B=magnitude, A=255"""
-    r_channel = encode_wind_component(u_data)
+    """Create RGBA image: R=U, G=V, B=magnitude, A=255
+    
+    Note: U is negated to convert from HRRR's grid convention to standard
+    meteorological convention (positive U = eastward wind)
+    """
+    # Negate U to fix sign convention (HRRR grid-x is opposite to standard east)
+    r_channel = encode_wind_component(-u_data)
     g_channel = encode_wind_component(v_data)
     
     # Magnitude for B channel (0-255 scaled to max possible ~70 m/s)
@@ -334,10 +336,7 @@ def extract_wind_from_netcdf(nc_path: Path, logger: logging.Logger) -> Tuple[Opt
         if lons is not None and np.nanmax(lons) > 180:
             lons = np.where(lons > 180, lons - 360, lons)
         
-        # Rotate grid-relative winds to earth-relative coordinates
-        if lons is not None:
-            logger.info("Rotating wind from grid-relative to earth-relative coordinates")
-            u_data, v_data = rotate_wind_to_earth(u_data, v_data, lons)
+        # Note: HRRR 10m winds are already earth-relative, no rotation needed
         
         metadata = {
             'source_file': nc_path.name,
