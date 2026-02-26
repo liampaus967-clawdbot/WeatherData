@@ -226,13 +226,8 @@ def extract_wind_from_grib(grib_path: Path, logger: logging.Logger) -> Tuple[Opt
 
 
 def create_wind_image(u_data: np.ndarray, v_data: np.ndarray) -> Image.Image:
-    """Create RGBA image: R=U, G=V, B=magnitude, A=255
-    
-    Note: U is negated to convert from HRRR's grid convention to standard
-    meteorological convention (positive U = eastward wind)
-    """
-    # Negate U to fix sign convention (HRRR grid-x is opposite to standard east)
-    r_channel = encode_wind_component(-u_data)
+    """Create RGBA image: R=U, G=V, B=magnitude, A=255"""
+    r_channel = encode_wind_component(u_data)
     g_channel = encode_wind_component(v_data)
     
     # Magnitude for B channel (0-255 scaled to max possible ~70 m/s)
